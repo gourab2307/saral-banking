@@ -1,6 +1,7 @@
 
 import { useEffect, useState } from 'react'
 import { customers } from './data/customers.js'
+import { paymentConfig } from './data/config.js'
 
 // const customers = [
 //   { id: 'shankar', name: 'Shankar', age: 68, description: 'Simple banking experience', initials: 'S', mode: 'simple', balancePaise: 2456800 },
@@ -131,9 +132,13 @@ useEffect(() => {
   const selectedPayee = payees.find((p) => p.id === recipientId)
   const isNewPayee = recipientId === 'new'
   const amountPaise = Math.round(Number(amount) * 100)
-  const isValidAmount = amount !== '' && Number.isFinite(Number(amount)) &&
-    Number(amount) > 0 && Number(amount) <= 1000000 &&
-    Number.isSafeInteger(amountPaise)
+  const isValidAmount =
+  amount !== '' &&
+  Number.isFinite(Number(amount)) &&
+  Number(amount) > 0 &&
+  Number(amountPaise) > 0 &&
+  amountPaise <= paymentConfig.maxPaymentPaise &&
+  Number.isSafeInteger(amountPaise)
 
   function resetPayment() {
     setPaymentStep('recipient')
@@ -157,7 +162,7 @@ useEffect(() => {
 
   function handleSignIn(event) {
     event.preventDefault()
-    if (pin !== '1234') {
+    if (pin !== paymentConfig.demoPin) {
       setError('Incorrect demo PIN. Please try again.')
       return
     }
@@ -213,7 +218,7 @@ useEffect(() => {
     }
     const recipientIsNew = isNewPayee || Boolean(selectedPayee?.isNew)
 
-    if (recipientIsNew && amountPaise > 1000000) {
+    if (recipientIsNew && amountPaise > paymentConfig.newPayeeLimitPaise) {
       setPaymentError('The demo limit for a new recipient is ₹10,000.')
       return
     }
@@ -254,7 +259,7 @@ useEffect(() => {
       return
     }
 
-    if (recipientIsNew && amountPaise > 1000000) {
+    if (recipientIsNew && amountPaise > paymentConfig.newPayeeLimitPaise) {
       setPaymentError('The demo limit for a new recipient is ₹10,000.')
       return
     }
@@ -287,12 +292,12 @@ useEffect(() => {
       return
     }
 
-if (recipientIsNew && amountPaise > 1000000) {
+if (recipientIsNew && amountPaise > paymentConfig.newPayeeLimitPaise) {
   setPaymentError('The demo limit for a new recipient is ₹10,000.')
   return
 }
 
-    if (paymentPin !== '1234') {
+    if (paymentPin !== paymentConfig.demoPin) {
       setPaymentError('Incorrect demo PIN. Please try again.')
       return
     }
@@ -330,7 +335,7 @@ if (recipientIsNew && amountPaise > 1000000) {
     })
 
     // Aarav's payments above ₹2,000 require simulated guardian approval.
-    if (selectedCustomer.mode === 'young' && amountPaise > 200000) {
+    if (selectedCustomer.mode === 'young' && amountPaise > paymentConfig.youngAccountApprovalThresholdPaise) {
       const pendingReceipt = {
         id: `DEMO-${Date.now()}`,
         recipient: finalName,
@@ -641,7 +646,7 @@ function resetDemoData() {
                 type="number"
                 inputMode="decimal"
                 min="0.01"
-                max="1000000"
+                max={paymentConfig.maxPaymentPaise / 100}
                 step="0.01"
                 value={amount}
                 onChange={(event) => {
@@ -752,7 +757,7 @@ function resetDemoData() {
       </li>
     )}
 
-    {amountPaise > 1000000 && (
+    {amountPaise > paymentConfig.maxPaymentPaise && (
       <li className="flex items-start gap-2">
         <span aria-hidden="true">⚠️</span>
         <span>
@@ -762,7 +767,7 @@ function resetDemoData() {
       </li>
     )}
 
-    {selectedCustomer.mode === 'young' && amountPaise > 200000 && (
+    {selectedCustomer.mode === 'young' && amountPaise > paymentConfig.youngAccountApprovalThresholdPaise && (
       <li className="flex items-start gap-2">
         <span aria-hidden="true">👪</span>
         <span>
@@ -801,7 +806,7 @@ function resetDemoData() {
                 <strong>New recipient:</strong> Please verify the recipient independently. Demo limit: ₹10,000.
               </div>
             )}
-            {amountPaise > 1000000 && (
+            {amountPaise > paymentConfig.maxPaymentPaise && (
               <div className="rounded-xl border border-amber-200 p-3 text-sm">
                 <strong>Large payment:</strong> Check the amount carefully before continuing.
               </div>
