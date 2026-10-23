@@ -212,7 +212,7 @@ useEffect(() => {
     }
     const recipientIsNew = isNewPayee || Boolean(selectedPayee?.isNew)
 
-    if (isNewPayee && amountPaise > 1000000) {
+    if (recipientIsNew && amountPaise > 1000000) {
       setPaymentError('The demo limit for a new recipient is ₹10,000.')
       return
     }
@@ -233,6 +233,9 @@ useEffect(() => {
   function continueToPin() {
     setPaymentError('')
 
+    const recipientIsNew =
+    isNewPayee || Boolean(selectedPayee?.isNew)
+
     if (urgentRequest === 'yes') {
       setPaymentError(
         'Stop. Do not send money because someone called or messaged you. Verify the request independently.'
@@ -250,7 +253,7 @@ useEffect(() => {
       return
     }
 
-    if (isNewPayee && amountPaise > 1000000) {
+    if (recipientIsNew && amountPaise > 1000000) {
       setPaymentError('The demo limit for a new recipient is ₹10,000.')
       return
     }
@@ -262,6 +265,26 @@ useEffect(() => {
     event.preventDefault()
     setPaymentError('')
     const recipientIsNew = isNewPayee || Boolean(selectedPayee?.isNew)
+    if (urgentRequest !== 'no') {
+      setPaymentError(
+        'Stop and verify the payment independently before continuing.'
+      )
+      return
+    }
+
+    if (!safetyAcknowledged) {
+      setPaymentError(
+        'Please confirm that you checked the recipient and amount.'
+      )
+      return
+    }
+
+    if (!isValidAmount) {
+      setPaymentError(
+        'Enter a valid payment amount within the demo limit.'
+      )
+      return
+    }
 
 if (recipientIsNew && amountPaise > 1000000) {
   setPaymentError('The demo limit for a new recipient is ₹10,000.')
@@ -669,10 +692,94 @@ function resetDemoData() {
 
         {paymentStep === 'safety' && (
           <div className="mt-6 space-y-5">
-            <div className="rounded-xl border border-amber-300 bg-amber-50 p-4">
-              <h3 className="font-bold text-amber-950">Pause and check</h3>
-              <p className="mt-2 text-sm leading-6 text-amber-950">Never send money because a caller or message threatens you, promises a prize, asks for an urgent transfer, or tells you to keep it secret. Never share a PIN or OTP.</p>
-            </div>
+            <div className="rounded-2xl border-2 border-amber-400 bg-amber-50 p-5 sm:p-6">
+  <div className="flex items-start gap-3">
+    <span
+      aria-hidden="true"
+      className="flex h-12 w-12 shrink-0 items-center justify-center rounded-full bg-amber-200 text-2xl"
+    >
+      ⚠️
+    </span>
+
+    <div>
+      <p className="text-xs font-bold uppercase tracking-wider text-amber-800">
+        Your safety comes first
+      </p>
+      <h3 className="mt-1 text-xl font-bold text-amber-950">
+        Pause before you pay
+      </h3>
+      <p className="mt-2 leading-6 text-amber-950">
+        Scammers may pretend to be bank staff, police officers or people you
+        know. They may create urgency to make you act without checking.
+      </p>
+    </div>
+  </div>
+
+  <div className="mt-4 space-y-3 rounded-xl bg-white p-4 text-sm text-slate-800">
+    <p><strong>Never share:</strong> your PIN, OTP or passwords.</p>
+    <p><strong>Verify independently:</strong> contact the person using a number you already trust.</p>
+    <p><strong>Remember:</strong> this demo never transfers real money.</p>
+  </div>
+</div>
+
+            
+<div className="rounded-2xl border border-teal-200 bg-teal-50 p-4 sm:p-5">
+  <div className="flex items-start gap-3">
+    <span
+      aria-hidden="true"
+      className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-teal-100 text-xl"
+    >
+      🛡️
+    </span>
+
+    <div className="min-w-0">
+      <p className="font-bold text-teal-950">Saral Safety Coach</p>
+      <p className="mt-1 text-sm leading-6 text-teal-900">
+        Here are the checks to make before you continue.
+      </p>
+    </div>
+  </div>
+
+  <ul className="mt-4 space-y-3 text-sm text-slate-800">
+    {(isNewPayee || Boolean(selectedPayee?.isNew)) && (
+      <li className="flex items-start gap-2">
+        <span aria-hidden="true">⚠️</span>
+        <span>
+          <strong>New recipient:</strong> verify their details using a trusted,
+          independent source. The demo limit is ₹10,000.
+        </span>
+      </li>
+    )}
+
+    {amountPaise > 1000000 && (
+      <li className="flex items-start gap-2">
+        <span aria-hidden="true">⚠️</span>
+        <span>
+          <strong>Higher-value payment:</strong> pause and double-check the
+          amount and recipient before proceeding.
+        </span>
+      </li>
+    )}
+
+    {selectedCustomer.mode === 'young' && amountPaise > 200000 && (
+      <li className="flex items-start gap-2">
+        <span aria-hidden="true">👪</span>
+        <span>
+          <strong>Guardian review:</strong> this payment will remain pending
+          in the demo until guardian approval is simulated.
+        </span>
+      </li>
+    )}
+
+    <li className="flex items-start gap-2">
+      <span aria-hidden="true">✓</span>
+      <span>
+        Never proceed because someone is pressuring you. If the request came
+        from a call or message, verify it independently.
+      </span>
+    </li>
+  </ul>
+</div>
 
             <fieldset>
               <legend className="font-semibold">Did someone call or message you and ask you to send this money?</legend>
