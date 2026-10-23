@@ -738,11 +738,70 @@ function resetDemoData() {
     )
   }
 
+function downloadCsvStatement() {
+  const headers = [
+    'Date',
+    'Description',
+    'Type',
+    'Amount (INR)',
+    'Status',
+    'Note',
+  ]
+
+  const rows = myTransactions.map((transaction) => [
+    transaction.date,
+    transaction.title,
+    transaction.type === 'credit' ? 'Money received' : 'Money sent or spent',
+    (transaction.amountPaise / 100).toFixed(2),
+    transaction.status || 'Completed',
+    transaction.note || '',
+  ])
+
+  // Escape commas, quotes and line breaks correctly for CSV.
+  const escapeCsvCell = (value) =>
+    `"${String(value ?? '').replace(/"/g, '""')}"`
+
+  const csvContent = [headers, ...rows]
+    .map((row) => row.map(escapeCsvCell).join(','))
+    .join('\r\n')
+
+  // BOM helps Excel display Hindi and the rupee symbol correctly.
+  const blob = new Blob(['\uFEFF', csvContent], {
+    type: 'text/csv;charset=utf-8;',
+  })
+
+  const url = URL.createObjectURL(blob)
+  const link = document.createElement('a')
+  const safeName = selectedCustomer.name
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, '-')
+    .replace(/^-|-$/g, '')
+
+  link.href = url
+  link.download = `saral-statement-${safeName}.csv`
+
+  document.body.appendChild(link)
+  link.click()
+  link.remove()
+
+  window.setTimeout(() => URL.revokeObjectURL(url), 1000)
+}  
+
+
 function renderHistory() {
   const filteredTransactions = myTransactions.filter((transaction) => {
-    const matchesSearch = `${transaction.title} ${transaction.date} ${transaction.status || ''} ${transaction.note || ''}`
+    const searchText = [
+      transaction.title,
+      transaction.date,
+      transaction.status || '',
+      transaction.note || '',
+    ]
+      .join(' ')
       .toLowerCase()
-      .includes(historySearch.trim().toLowerCase())
+
+    const matchesSearch = searchText.includes(
+      historySearch.trim().toLowerCase()
+    )
 
     const matchesType =
       historyType === 'all' || transaction.type === historyType
@@ -750,101 +809,213 @@ function renderHistory() {
     return matchesSearch && matchesType
   })
 
+  const totalMoneyIn = myTransactions
+    .filter((transaction) => transaction.type === 'credit')
+    .reduce((total, transaction) => total + transaction.amountPaise, 0)
+
+  const totalMoneyOut = myTransactions
+    .filter((transaction) => transaction.type === 'debit')
+    .reduce((total, transaction) => total + transaction.amountPaise, 0)
+
   return (
-    <section>
-      <h2 className="text-2xl font-bold text-slate-900">
-        Transaction history
-      </h2>
-      <p className="mt-2 text-slate-600">
-        Review money coming in and going out of your demo account.
-      </p>
+    <section className="space-y-6">
+      <header>
+        <p className="text-sm font-semibold uppercase tracking-wide text-teal-800">
+          Your account
+        </p>
+        <h2 className="mt-1 text-2xl font-bold text-slate-900">
+          Transaction history
+        </h2>
+        <p className="mt-2 text-slate-600">
+          See where your money goes and when money comes in.
+        </p>
+      </header>
 
-      <label htmlFor="history-search" className="mt-5 block font-semibold">
-        Search transactions
-      </label>
-      <input
-        id="history-search"
-        type="search"
-        value={historySearch}
-        onChange={(event) => setHistorySearch(event.target.value)}
-        placeholder="Search by name or note"
-        className="mt-2 min-h-12 w-full rounded-xl border border-slate-300 bg-white px-3"
-      />
-
-      <label htmlFor="history-type" className="mt-4 block font-semibold">
-        Filter transactions
-      </label>
-      <select
-        id="history-type"
-        value={historyType}
-        onChange={(event) => setHistoryType(event.target.value)}
-        className="mt-2 min-h-12 w-full rounded-xl border border-slate-300 bg-white px-3"
-      >
-        <option value="all">All transactions</option>
-        <option value="debit">Money sent or spent</option>
-        <option value="credit">Money received</option>
-      </select>
-
-      <p className="mt-4 text-sm text-slate-600" aria-live="polite">
-        {filteredTransactions.length} transaction(s) found
-      </p>
-
-      <div className="mt-3 divide-y divide-slate-100 rounded-2xl border border-slate-200 bg-white px-4">
-        {filteredTransactions.map((transaction) => (
-          <div key={transaction.id} className="flex items-center gap-3 py-4">
-            <span
-              aria-hidden="true"
-              className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-slate-100 text-lg"
-            >
-              {transaction.type === 'credit' ? '↓' : '↑'}
-            </span>
-
-            <div className="min-w-0 flex-1">
-              <p className="break-words font-semibold text-slate-900">
-                {transaction.title}
-              </p>
-              <p className="mt-1 text-sm text-slate-500">
-                {transaction.date}
-              </p>
-              {transaction.note && (
-                <p className="mt-1 break-words text-sm text-slate-600">
-                  Note: {transaction.note}
-                </p>
-              )}
-              <p className="mt-1 text-sm text-slate-600">
-                Status: {transaction.status || 'Completed'}
-              </p>
-            </div>
-
-            <p className={`shrink-0 text-right text-sm font-bold sm:text-base ${
-              transaction.type === 'credit'
-                ? 'text-green-700'
-                : 'text-slate-900'
-            }`}>
-              {transaction.type === 'credit' ? '+' : '−'}
-              {formatMoney(transaction.amountPaise)}
-            </p>
-          </div>
-        ))}
-
-        {filteredTransactions.length === 0 && (
-          <p className="py-8 text-center text-slate-600">
-            No matching transactions found. Try a different search or filter.
+      <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+        <article className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
+          <p className="text-sm font-medium text-slate-600">
+            Total money received
           </p>
-        )}
+          <p className="mt-2 break-words text-2xl font-bold text-green-800">
+            {formatMoney(totalMoneyIn)}
+          </p>
+          <p className="mt-1 text-sm text-slate-500">
+            Across all your demo transactions
+          </p>
+        </article>
+
+        <article className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
+          <p className="text-sm font-medium text-slate-600">
+            Total money sent or spent
+          </p>
+          <p className="mt-2 break-words text-2xl font-bold text-slate-900">
+            {formatMoney(totalMoneyOut)}
+          </p>
+          <p className="mt-1 text-sm text-slate-500">
+            Across all your demo transactions
+          </p>
+        </article>
       </div>
+
+      <section className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm sm:p-5">
+        <h3 className="text-lg font-bold">Find a transaction</h3>
+
+        <label
+          htmlFor="history-search"
+          className="mt-4 block font-semibold"
+        >
+          Search by name, date or note
+        </label>
+        <input
+          id="history-search"
+          type="search"
+          value={historySearch}
+          onChange={(event) => setHistorySearch(event.target.value)}
+          placeholder="e.g. grocery or electricity"
+          className="mt-2 min-h-12 w-full rounded-xl border border-slate-300 bg-white px-3 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-teal-700"
+        />
+
+        <label
+          htmlFor="history-type"
+          className="mt-4 block font-semibold"
+        >
+          Transaction type
+        </label>
+        <select
+          id="history-type"
+          value={historyType}
+          onChange={(event) => setHistoryType(event.target.value)}
+          className="mt-2 min-h-12 w-full rounded-xl border border-slate-300 bg-white px-3 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-teal-700"
+        >
+          <option value="all">All transactions</option>
+          <option value="debit">Money sent or spent</option>
+          <option value="credit">Money received</option>
+        </select>
+
+        <div className="mt-4 flex flex-wrap items-center justify-between gap-3">
+          <p className="text-sm text-slate-600" aria-live="polite">
+            Showing {filteredTransactions.length} of {myTransactions.length}{' '}
+            transactions
+          </p>
+          <button
+            type="button"
+            onClick={() => {
+              setHistorySearch('')
+              setHistoryType('all')
+            }}
+            className="min-h-11 rounded-lg px-3 font-semibold text-teal-800 underline underline-offset-4 focus-visible:outline-2 focus-visible:outline-teal-700"
+          >
+            Clear filters
+          </button>
+        </div>
+      </section>
+
+      <button
+        type="button"
+        onClick={downloadCsvStatement}
+        className="flex min-h-14 w-full items-center justify-center gap-2 rounded-xl bg-teal-800 px-4 py-3 font-semibold text-white hover:bg-teal-900 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-teal-800"
+      >
+        <span aria-hidden="true">↓</span>
+        Download CSV statement
+      </button>
+
+      <p className="text-sm text-slate-600">
+        The CSV contains all transactions for your selected demo account,
+        not just the results currently shown by your filters.
+      </p>
+
+      <section>
+        <h3 className="mb-3 text-lg font-bold">Your transactions</h3>
+
+        <div className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
+          {filteredTransactions.map((transaction) => {
+            const isCredit = transaction.type === 'credit'
+
+            return (
+              <article
+                key={transaction.id}
+                className="flex items-start gap-3 border-b border-slate-100 p-4 last:border-b-0 sm:gap-4"
+              >
+                <span
+                  aria-hidden="true"
+                  className={`flex h-11 w-11 shrink-0 items-center justify-center rounded-full text-xl font-bold ${
+                    isCredit
+                      ? 'bg-green-100 text-green-800'
+                      : 'bg-slate-100 text-slate-700'
+                  }`}
+                >
+                  {isCredit ? '↓' : '↑'}
+                </span>
+
+                <div className="min-w-0 flex-1">
+                  <p className="break-words font-semibold text-slate-900">
+                    {transaction.title}
+                  </p>
+                  <p className="mt-1 text-sm text-slate-500">
+                    {transaction.date}
+                  </p>
+                  <p className="mt-1 text-sm font-medium text-slate-700">
+                    {isCredit ? 'Money received' : 'Money sent or spent'}
+                  </p>
+
+                  {transaction.note && (
+                    <p className="mt-1 break-words text-sm text-slate-600">
+                      Note: {transaction.note}
+                    </p>
+                  )}
+
+                  <p className="mt-2 text-sm text-slate-600">
+                    Status: {transaction.status || 'Completed'}
+                  </p>
+                </div>
+
+                <div className="max-w-[45%] shrink-0 text-right">
+                  <p
+                    className={`break-words font-bold ${
+                      isCredit ? 'text-green-800' : 'text-slate-900'
+                    }`}
+                  >
+                    {isCredit ? '+' : '−'}
+                    {formatMoney(transaction.amountPaise)}
+                  </p>
+                </div>
+              </article>
+            )
+          })}
+
+          {filteredTransactions.length === 0 && (
+            <div className="px-5 py-10 text-center">
+              <p className="font-semibold text-slate-800">
+                No matching transactions
+              </p>
+              <p className="mt-2 text-sm text-slate-600">
+                Try another search or clear your filters to see all transactions.
+              </p>
+              <button
+                type="button"
+                onClick={() => {
+                  setHistorySearch('')
+                  setHistoryType('all')
+                }}
+                className="mt-4 min-h-12 rounded-xl border border-slate-300 px-4 font-semibold text-slate-800"
+              >
+                Show all transactions
+              </button>
+            </div>
+          )}
+        </div>
+      </section>
 
       <button
         type="button"
         onClick={() => setActiveTab('Home')}
-        className="mt-5 min-h-12 w-full rounded-xl border border-slate-300 bg-white px-4 font-semibold text-slate-800"
+        className="min-h-12 w-full rounded-xl border border-slate-300 bg-white px-4 font-semibold text-slate-800 hover:bg-slate-50 focus-visible:outline-2 focus-visible:outline-teal-700"
       >
         Back to Home
       </button>
     </section>
   )
 }
-
 
   function renderPlaceholder() {
     const content = {
