@@ -3,22 +3,13 @@ import { useEffect, useState } from 'react'
 import { customers } from './data/customers.js'
 import { paymentConfig } from './data/config.js'
 import { initialPayees } from './data/payees.js'
+import { initialTransactions } from './data/transactions.js'
 
 // const customers = [
 //   { id: 'shankar', name: 'Shankar', age: 68, description: 'Simple banking experience', initials: 'S', mode: 'simple', balancePaise: 2456800 },
 //   { id: 'priya', name: 'Priya', age: 32, description: 'Everyday banking', initials: 'P', mode: 'standard', balancePaise: 8245500 },
 //   { id: 'aarav', name: 'Aarav', age: 15, description: 'Young saver account', initials: 'A', mode: 'young', balancePaise: 1250000 },
 // ]
-
-
-
-const initialTransactions = [
-  { id: 't1', customerId: 'shankar', title: 'Grocery store', date: 'Today, 10:30 AM', amountPaise: 85000, type: 'debit', status: 'Completed' },
-  { id: 't2', customerId: 'shankar', title: 'Money received', date: 'Yesterday, 4:15 PM', amountPaise: 250000, type: 'credit', status: 'Completed' },
-  { id: 't3', customerId: 'shankar', title: 'Electricity bill', date: '20 Oct 2026', amountPaise: 132500, type: 'debit', status: 'Completed' },
-  { id: 't4', customerId: 'priya', title: 'Salary credited', date: 'Today, 9:00 AM', amountPaise: 4500000, type: 'credit', status: 'Completed' },
-  { id: 't5', customerId: 'aarav', title: 'Pocket money', date: 'Yesterday, 8:00 AM', amountPaise: 500000, type: 'credit', status: 'Completed' },
-]
 
 const navigation = [
   { id: 'Home', icon: '⌂' },
@@ -73,7 +64,7 @@ const [balances, setBalances] = useState(() =>
 )
 
 const [transactions, setTransactions] = useState(() =>
-  loadDemoData('saral-transactions-v1', initialTransactions)
+  loadDemoData('saral-transactions-v2', initialTransactions)
 )
 
 const [payees, setPayees] = useState(() =>
