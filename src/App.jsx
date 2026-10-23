@@ -2,6 +2,7 @@
 import { useEffect, useState } from 'react'
 import { customers } from './data/customers.js'
 import { paymentConfig } from './data/config.js'
+import { initialPayees } from './data/payees.js'
 
 // const customers = [
 //   { id: 'shankar', name: 'Shankar', age: 68, description: 'Simple banking experience', initials: 'S', mode: 'simple', balancePaise: 2456800 },
@@ -9,11 +10,7 @@ import { paymentConfig } from './data/config.js'
 //   { id: 'aarav', name: 'Aarav', age: 15, description: 'Young saver account', initials: 'A', mode: 'young', balancePaise: 1250000 },
 // ]
 
-const initialPayees = [
-  { id: 'r1', name: 'Ananya Sharma', account: '•••• 1024', isNew: false },
-  { id: 'r2', name: 'Rahul Verma', account: '•••• 5631', isNew: false },
-  { id: 'r3', name: 'Meena Devi', account: '•••• 8842', isNew: false },
-]
+
 
 const initialTransactions = [
   { id: 't1', customerId: 'shankar', title: 'Grocery store', date: 'Today, 10:30 AM', amountPaise: 85000, type: 'debit', status: 'Completed' },
