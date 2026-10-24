@@ -4,6 +4,8 @@ import { customers } from './data/customers.js'
 import { paymentConfig } from './data/config.js'
 import { initialPayees } from './data/payees.js'
 import { initialTransactions } from './data/transactions.js'
+import { analyzeScamMessage } from './utils/scamAnalyzer.js'
+import { scamPatterns } from './data/scams.js'
 
 // const customers = [
 //   { id: 'shankar', name: 'Shankar', age: 68, description: 'Simple banking experience', initials: 'S', mode: 'simple', balancePaise: 2456800 },
@@ -43,6 +45,8 @@ function loadDemoData(key, fallback) {
 
 
 function App() {
+  const [scamMessage, setScamMessage] = useState('')
+  const [scamResult, setScamResult] = useState(null)
   const [selectedCustomer, setSelectedCustomer] = useState(customers[0])
   const [pin, setPin] = useState('')
   const [error, setError] = useState('')
@@ -774,6 +778,99 @@ function resetDemoData() {
     </li>
   </ul>
 </div>
+
+
+<div className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm sm:p-5">
+  <div className="flex items-start gap-3">
+    <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-teal-100 text-xl">
+      🛡️
+    </span>
+    <div>
+      <h3 className="font-bold text-slate-900">Saral Scam Shield</h3>
+      <p className="mt-1 text-sm leading-6 text-slate-600">
+        Received a suspicious SMS or message? Check it for common warning signs before acting.
+      </p>
+    </div>
+  </div>
+
+  <label htmlFor="scam-message" className="mt-4 block text-sm font-semibold">
+    Paste the suspicious message
+  </label>
+  <textarea
+    id="scam-message"
+    value={scamMessage}
+    onChange={(event) => {
+      setScamMessage(event.target.value)
+      setScamResult(null)
+    }}
+    rows={4}
+    maxLength={2000}
+    placeholder="Example: Your account will be blocked today. Share your OTP immediately..."
+    className="mt-2 w-full rounded-xl border border-slate-300 p-3 text-sm focus:border-teal-700 focus:outline-none focus:ring-2 focus:ring-teal-100"
+  />
+
+  <p className="mt-1 text-xs text-slate-500">
+    Demo analysis only. Avoid pasting real account numbers, passwords, or OTPs.
+  </p>
+
+  <button
+    type="button"
+    onClick={() => setScamResult(analyzeScamMessage(scamMessage))}
+    disabled={!scamMessage.trim()}
+    className="mt-4 min-h-12 w-full rounded-xl bg-teal-700 px-4 font-semibold text-white hover:bg-teal-800 disabled:cursor-not-allowed disabled:opacity-50"
+  >
+    Analyze message
+  </button>
+
+  {scamResult && (
+    <div
+      aria-live="polite"
+      className={`mt-4 rounded-xl border p-4 ${
+        scamResult.risk === 'high'
+          ? 'border-red-200 bg-red-50'
+          : scamResult.risk === 'medium'
+            ? 'border-amber-200 bg-amber-50'
+            : 'border-teal-200 bg-teal-50'
+      }`}
+    >
+      <h4 className="font-bold text-slate-900">
+        {scamResult.risk === 'high'
+          ? 'High-risk warning signs'
+          : scamResult.risk === 'medium'
+            ? 'Warning signs found'
+            : scamResult.risk === 'low'
+              ? 'No known patterns detected'
+              : 'Message check'}
+      </h4>
+
+      <p className="mt-2 text-sm leading-6 text-slate-800">
+        {scamResult.summary}
+      </p>
+
+      {scamResult.matches.length > 0 && (
+        <ul className="mt-3 space-y-3">
+          {scamResult.matches.map((pattern) => (
+            <li key={pattern.id} className="text-sm">
+              <p className="font-semibold">{pattern.title}</p>
+              <p className="mt-1 leading-5 text-slate-700">
+                {pattern.explanation}
+              </p>
+            </li>
+          ))}
+        </ul>
+      )}
+
+      <p className="mt-3 text-sm leading-6 text-slate-800">
+        <strong>Safer next step:</strong> {scamResult.advice}
+      </p>
+
+      <p className="mt-3 text-xs text-slate-600">
+        This rule-based checker cannot confirm whether a message is genuine or fraudulent.
+      </p>
+    </div>
+  )}
+</div>
+
 
             <fieldset>
               <legend className="font-semibold">Did someone call or message you and ask you to send this money?</legend>
