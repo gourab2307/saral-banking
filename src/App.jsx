@@ -6,6 +6,8 @@ import { initialPayees } from './data/payees.js'
 import { initialTransactions } from './data/transactions.js'
 import { analyzeScamMessage } from './utils/scamAnalyzer.js'
 import { scamPatterns } from './data/scams.js'
+import en from './i18n/en.js'
+import hi from './i18n/hi.js'
 
 // const customers = [
 //   { id: 'shankar', name: 'Shankar', age: 68, description: 'Simple banking experience', initials: 'S', mode: 'simple', balancePaise: 2456800 },
@@ -14,11 +16,11 @@ import { scamPatterns } from './data/scams.js'
 // ]
 
 const navigation = [
-  { id: 'Home', icon: '⌂' },
-  { id: 'Pay', icon: '↗' },
-  { id: 'History', icon: '↻' },
-  { id: 'Services', icon: '▦' },
-  { id: 'Help', icon: '?' },
+  { id: 'Home', label: 'home', icon: '⌂' },
+  { id: 'Pay', label: 'pay', icon: '↗' },
+  { id: 'History', label: 'history', icon: '↻' },
+  { id: 'Services', label: 'services', icon: '▦' },
+  { id: 'Help', label: 'help', icon: '?' },
 ]
 
 const formatMoney = (paise) =>
@@ -28,6 +30,32 @@ const formatMoney = (paise) =>
     maximumFractionDigits: 2,
   }).format(paise / 100)
 
+function translateTransactionTitle(title, language) {
+  const hindiTitles = {
+    'Grocery shopping': 'किराने की खरीदारी',
+    'Money received': 'धन प्राप्त हुआ',
+    'Electricity bill': 'बिजली का बिल',
+    'Daily essentials': 'रोज़मर्रा की ज़रूरतें',
+    'Pension credited': 'पेंशन जमा हुई',
+    'Pharmacy purchase': 'दवा की खरीदारी',
+    'Salary credited': 'वेतन जमा हुआ',
+    'Money transferred': 'पैसे ट्रांसफर किए गए',
+    'Supermarket purchase': 'सुपरमार्केट से खरीदारी',
+    'Mobile bill': 'मोबाइल बिल',
+    'Pocket money received': 'जेब खर्च',
+    'Canteen purchase': 'कैंटीन से खरीदारी',
+    'School books': 'स्कूल की किताबें',
+    'Sports supplies': 'खेल का सामान',
+  }
+
+  if (language !== 'hi') return title
+
+  if (title.startsWith('Payment to ')) {
+    return `${title.slice('Payment to '.length)} को भुगतान`
+  }
+
+  return hindiTitles[title] || title
+}
 
 function loadDemoData(key, fallback) {
   try {
@@ -45,6 +73,11 @@ function loadDemoData(key, fallback) {
 
 
 function App() {
+  const [language, setLanguage] = useState(
+  () => localStorage.getItem('saral-language') || 'en'
+)
+
+  const t = language === 'hi' ? hi : en
   const [scamMessage, setScamMessage] = useState('')
   const [scamResult, setScamResult] = useState(null)
   const [selectedCustomer, setSelectedCustomer] = useState(customers[0])
@@ -216,7 +249,7 @@ useEffect(() => {
     }
 
     if (amountPaise > balancePaise) {
-      setPaymentError('Your demo balance is too low for this payment.')
+      setPaymentError(t.insufficientDemoBalance)
       return
     }
 
@@ -265,44 +298,44 @@ useEffect(() => {
     const recipientIsNew = isNewPayee || Boolean(selectedPayee?.isNew)
     if (urgentRequest !== 'no') {
       setPaymentError(
-        'Stop and verify the payment independently before continuing.'
+        t.verifyPaymentIndependently
       )
       return
     }
 
     if (!safetyAcknowledged) {
       setPaymentError(
-        'Please confirm that you checked the recipient and amount.'
+        t.confirmRecipientAndAmount
       )
       return
     }
 
     if (!isValidAmount) {
       setPaymentError(
-        'Enter a valid payment amount within the demo limit.'
+        t.validPaymentAmount
       )
       return
     }
 
 if (recipientIsNew && amountPaise > paymentConfig.newPayeeLimitPaise) {
-  setPaymentError('The demo limit for a new recipient is ₹10,000.')
+  setPaymentError(t.newRecipientDemoLimit)
   return
 }
 
     if (paymentPin !== paymentConfig.demoPin) {
-      setPaymentError('Incorrect demo PIN. Please try again.')
+      setPaymentError(t.incorrectDemoPin)
       return
     }
 
     const finalName = isNewPayee ? newRecipientName.trim() : selectedPayee?.name
 
     if (!finalName) {
-      setPaymentError('Recipient details are missing. Start again.')
+      setPaymentError(t.recipientDetailsMissing)
       return
     }
 
     if (amountPaise <= 0 || amountPaise > balances[selectedCustomer.id]) {
-      setPaymentError('The payment amount is no longer valid. Start again.')
+      setPaymentError(t.paymentAmountInvalid)
       return
     }
 
@@ -395,17 +428,61 @@ function resetDemoData() {
   setHistoryType('all')
 }
 
+  
   function renderHome() {
     return (
       <>
+        <div className="mb-4 flex items-center justify-between rounded-xl border border-slate-200 bg-white p-3">
+          <span className="font-semibold text-slate-700">{t.language}</span>
+
+          <div className="flex gap-2">
+            <button
+              type="button"
+              onClick={() => {
+                setLanguage('en')
+                localStorage.setItem('saral-language', 'en')
+              }}
+              className={`min-h-10 rounded-lg px-4 font-semibold ${
+                language === 'en'
+                  ? 'bg-teal-800 text-white'
+                  : 'border border-slate-300 text-slate-700'
+              }`}
+              aria-pressed={language === 'en'}
+            >
+              English
+            </button>
+
+            <button
+              type="button"
+              onClick={() => {
+                setLanguage('hi')
+                localStorage.setItem('saral-language', 'hi')
+              }}
+              className={`min-h-10 rounded-lg px-4 font-semibold ${
+                language === 'hi'
+                  ? 'bg-teal-800 text-white'
+                  : 'border border-slate-300 text-slate-700'
+              }`}
+              aria-pressed={language === 'hi'}
+            >
+              हिन्दी
+            </button>
+          </div>
+        </div>
+
         <section className="rounded-2xl bg-teal-800 p-5 text-white shadow-sm sm:p-6">
+
           <div className="flex items-start justify-between gap-3">
             <div>
-              <p className="text-sm text-teal-100">AVAILABLE BALANCE · DEMO</p>
+              <p className="text-sm text-teal-100">
+                {t.balance.toUpperCase()} · DEMO
+              </p>
               <p className="mt-2 text-3xl font-bold sm:text-4xl">
                 {balanceVisible ? formatMoney(balancePaise) : '₹ ••••••'}
               </p>
-              <p className="mt-3 text-sm text-teal-100">Demo account · •••• 4821</p>
+              <p className="mt-3 text-sm text-teal-100">
+               {language === 'hi' ? 'डेमो खाता' : 'Demo account'} · •••• 4821
+              </p>
             </div>
             <button
               type="button"
@@ -419,13 +496,27 @@ function resetDemoData() {
         </section>
 
         <section className="mt-6">
-          <h2 className="text-xl font-bold">What would you like to do?</h2>
+          <h2 className="text-xl font-bold">
+            {language === 'hi' ? 'आप क्या करना चाहेंगे?' : 'What would you like to do?'}
+          </h2>
           <div className="mt-3 grid grid-cols-2 gap-3">
             {[
-              { label: 'Send money', icon: '↗', action: openPay },
-              { label: 'View history', icon: '↻', action: () => setActiveTab('History') },
-              { label: 'Bank services', icon: '▦', action: () => setActiveTab('Services') },
-              { label: 'Get help', icon: '?', action: () => setActiveTab('Help') },
+              { label: t.sendMoney, icon: '↗', action: openPay },
+  {
+    label: language === 'hi' ? 'लेन-देन देखें' : 'View history',
+    icon: '↻',
+    action: () => setActiveTab('History'),
+  },
+  {
+    label: language === 'hi' ? 'बैंक सेवाएँ' : 'Bank services',
+    icon: '▦',
+    action: () => setActiveTab('Services'),
+  },
+  {
+    label: language === 'hi' ? 'सहायता प्राप्त करें' : 'Get help',
+    icon: '?',
+    action: () => setActiveTab('Help'),
+  },
             ].map((item) => (
               <button
                 key={item.label}
@@ -442,13 +533,13 @@ function resetDemoData() {
 
         <section className="mt-7">
           <div className="flex items-center justify-between gap-3">
-            <h2 className="text-xl font-bold">Recent transactions</h2>
+            <h2 className="text-xl font-bold">{t.recentTransactions}</h2>
             <button
               type="button"
               onClick={() => setActiveTab('History')}
               className="min-h-11 rounded-lg px-2 text-sm font-semibold text-teal-800 underline underline-offset-4"
             >
-              View all
+              {t.viewAll}
             </button>
           </div>
           <div className="mt-3 divide-y divide-slate-100 rounded-2xl border border-slate-200 bg-white px-4">
@@ -458,9 +549,17 @@ function resetDemoData() {
                   {transaction.type === 'credit' ? '↓' : '↑'}
                 </span>
                 <div className="min-w-0 flex-1">
-                  <p className="font-semibold">{transaction.title}</p>
+                  <p className="font-semibold">
+  {translateTransactionTitle(transaction.title, language)}
+</p>
                   <p className="mt-1 text-sm text-slate-500">{transaction.date}</p>
-                  {transaction.status && <p className="mt-1 text-xs text-slate-500">{transaction.status}</p>}
+                  {transaction.status && (
+  <p className="mt-1 text-xs text-slate-500">
+    {language === 'hi' && transaction.status === 'Completed'
+      ? t.completed
+      : transaction.status}
+  </p>
+)}
                 </div>
                 <p className={`whitespace-nowrap text-sm font-bold ${transaction.type === 'credit' ? 'text-green-700' : ''}`}>
                   {transaction.type === 'credit' ? '+' : '−'}{formatMoney(transaction.amountPaise)}
@@ -468,20 +567,20 @@ function resetDemoData() {
               </div>
             ))}
           </div>
-          <p className="mt-3 text-xs text-slate-500">All balances and transactions are fictional.</p>
+          <p className="mt-3 text-xs text-slate-500">{t.fictionalBalancesNotice}</p>
           <button
   type="button"
   onClick={resetDemoData}
   className="mt-4 min-h-12 w-full rounded-xl border border-slate-300 bg-white px-4 font-semibold text-slate-700 hover:bg-slate-100"
 >
-  Reset demo data
+  {t.resetDemoData}
 </button>
         </section>
 
         {selectedCustomer.mode === 'young' && (
           <section className="mt-5 rounded-xl border border-amber-300 bg-amber-50 p-4">
-            <h2 className="font-bold text-amber-950">Young saver account</h2>
-            <p className="mt-1 text-sm text-amber-900">Payments above ₹2,000 need simulated guardian approval.</p>
+            <h2 className="font-bold text-amber-950">{t.youngSaverAccount}</h2>
+            <p className="mt-1 text-sm text-amber-900">{t.guardianApprovalNotice}</p>
           </section>
         )}
       </>
@@ -490,11 +589,11 @@ function resetDemoData() {
 
   function renderPayment() {
     const steps = [
-      { id: 'recipient', label: '1. Recipient' },
-      { id: 'review', label: '2. Review' },
-      { id: 'safety', label: '3. Safety' },
-      { id: 'pin', label: '4. Confirm' },
-      { id: 'receipt', label: '5. Receipt' },
+      { id: 'recipient', label: t.recipientStep },
+      { id: 'review', label: t.reviewStep },
+      { id: 'safety', label: t.safetyStep },
+      { id: 'pin', label: t.confirmStep },
+      { id: 'receipt', label: t.receiptStep },
     ]
     const currentIndex = steps.findIndex((step) => step.id === paymentStep)
 
@@ -505,37 +604,37 @@ function resetDemoData() {
             {guardianPending ? '⌛' : '✓'}
           </div>
           <h2 className="mt-4 text-center text-2xl font-bold">
-            {guardianPending ? 'Approval needed' : 'Demo payment complete'}
+            {guardianPending ? t.approvalNeeded : t.demoPaymentComplete}
           </h2>
           <p className="mt-2 text-center text-slate-600">
             {guardianPending
-              ? 'This payment has not been sent. It is waiting for guardian approval in the demo.'
-              : 'This is a simulated payment. No real money was transferred.'}
+              ? t.paymentNotSent
+              : t.simulatedPayment}
           </p>
 
           <div className="mt-6 rounded-xl bg-slate-50 p-4">
-            <p className="text-sm text-slate-500">Payment amount</p>
+            <p className="text-sm text-slate-500">{t.paymentAmount}</p>
             <p className="mt-1 text-3xl font-bold">{formatMoney(receipt.amountPaise)}</p>
             <div className="mt-5 space-y-4">
               <div className="flex justify-between gap-3">
-                <span className="text-slate-500">Recipient</span>
+                <span className="text-slate-500">{t.recipient}</span>
                 <span className="text-right font-semibold">{receipt.recipient}</span>
               </div>
               <div className="flex justify-between gap-3">
-                <span className="text-slate-500">Account</span>
+                <span className="text-slate-500">{t.account}</span>
                 <span className="font-semibold">{receipt.account}</span>
               </div>
               <div className="flex justify-between gap-3">
-                <span className="text-slate-500">Reference</span>
+                <span className="text-slate-500">{t.reference}</span>
                 <span className="break-all text-right font-semibold">{receipt.id}</span>
               </div>
               <div className="flex justify-between gap-3">
-                <span className="text-slate-500">Status</span>
+                <span className="text-slate-500">{t.status}</span>
                 <span className="text-right font-semibold">{receipt.status}</span>
               </div>
               {receipt.note && (
                 <div className="flex justify-between gap-3">
-                  <span className="text-slate-500">Note</span>
+                  <span className="text-slate-500">{t.note}</span>
                   <span className="text-right">{receipt.note}</span>
                 </div>
               )}
@@ -550,14 +649,14 @@ function resetDemoData() {
             }}
             className="mt-5 min-h-12 w-full rounded-xl bg-teal-700 px-4 font-semibold text-white hover:bg-teal-800 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-teal-700"
           >
-            Back to Home
+            {t.backToHome}
           </button>
           <button
             type="button"
             onClick={openPay}
             className="mt-3 min-h-12 w-full rounded-xl border border-slate-300 px-4 font-semibold"
           >
-            Make another demo payment
+            {t.anotherPayment}
           </button>
         </section>
       )
@@ -565,8 +664,8 @@ function resetDemoData() {
 
     return (
       <section className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm sm:p-7">
-        <h2 className="text-2xl font-bold">Send money</h2>
-        <p className="mt-2 text-sm text-slate-600">Demo only · No real transfer will take place.</p>
+        <h2 className="text-2xl font-bold">{t.paymentTitle}</h2>
+        <p className="mt-2 text-sm text-slate-600">{t.demoPaymentNotice}</p>
 
         <div className="mt-5 grid grid-cols-5 gap-1" aria-label="Payment progress">
           {steps.map((step, index) => (
@@ -579,7 +678,7 @@ function resetDemoData() {
         {paymentStep === 'recipient' && (
           <form onSubmit={continueToReview} className="mt-6 space-y-5">
             <div>
-              <label htmlFor="recipient" className="block font-semibold">Who are you paying?</label>
+              <label htmlFor="recipient" className="block font-semibold">{t.whoAreYouPaying}</label>
               <select
                 id="recipient"
                 value={recipientId}
@@ -590,49 +689,49 @@ function resetDemoData() {
                 required
                 className="mt-2 min-h-12 w-full rounded-xl border border-slate-300 bg-white px-3"
               >
-                <option value="">Choose a recipient</option>
+                <option value=""> {t.chooseRecipient} </option>
                 {payees.map((payee) => (
                   <option key={payee.id} value={payee.id}>{payee.name} · {payee.account}</option>
                 ))}
-                <option value="new">Add a new demo recipient</option>
+                <option value="new">{t.addNewRecipient}</option>
               </select>
             </div>
 
             {isNewPayee && (
               <div className="space-y-4 rounded-xl bg-slate-50 p-4">
                 <div>
-                  <label htmlFor="new-name" className="block font-semibold">Recipient's registered name</label>
+                  <label htmlFor="new-name" className="block font-semibold">{t.registeredName}</label>
                   <input
                     id="new-name"
                     value={newRecipientName}
                     onChange={(event) => setNewRecipientName(event.target.value)}
                     maxLength={60}
                     autoComplete="off"
-                    placeholder="e.g. Kavita Das"
+                    placeholder={t.exampleName}
                     className="mt-2 min-h-12 w-full rounded-xl border border-slate-300 px-3"
                     required
                   />
                 </div>
                 <div>
-                  <label htmlFor="new-account" className="block font-semibold">Fictional demo account number</label>
+                  <label htmlFor="new-account" className="block font-semibold">{t.demoAccountNumber}</label>
                   <input
                     id="new-account"
                     value={newRecipientAccount}
                     onChange={(event) => setNewRecipientAccount(event.target.value.replace(/\D/g, '').slice(0, 18))}
                     inputMode="numeric"
                     autoComplete="off"
-                    placeholder="4 to 18 digits"
+                    placeholder={t.accountDigitsPlaceholder}
                     className="mt-2 min-h-12 w-full rounded-xl border border-slate-300 px-3"
                     required
                   />
-                  <p className="mt-1 text-sm text-slate-500">Use fictional digits only. This does not check a real bank account.</p>
+                  <p className="mt-1 text-sm text-slate-500">{t.fictionalDigitsNotice}</p>
                 </div>
-                <p className="text-sm font-medium text-amber-900">Safety rule: new demo recipients have a maximum payment of ₹10,000.</p>
+                <p className="text-sm font-medium text-amber-900">{t.newRecipientLimit}</p>
               </div>
             )}
 
             <div>
-              <label htmlFor="amount" className="block font-semibold">Amount (₹)</label>
+              <label htmlFor="amount" className="block font-semibold">{t.amountRupees}</label>
               <input
                 id="amount"
                 type="number"
@@ -645,21 +744,21 @@ function resetDemoData() {
                   setAmount(event.target.value)
                   setPaymentError('')
                 }}
-                placeholder="e.g. 500"
+                placeholder={t.exampleAmount}
                 required
                 className="mt-2 min-h-14 w-full rounded-xl border border-slate-300 px-4 text-xl"
               />
-              <p className="mt-1 text-sm text-slate-500">Available demo balance: {formatMoney(balancePaise)}</p>
+              <p className="mt-1 text-sm text-slate-500">{t.availableDemoBalance}: {formatMoney(balancePaise)}</p>
             </div>
 
             <div>
-              <label htmlFor="note" className="block font-semibold">Note (optional)</label>
+              <label htmlFor="note" className="block font-semibold">{t.optionalNote}</label>
               <input
                 id="note"
                 value={note}
                 onChange={(event) => setNote(event.target.value)}
                 maxLength={80}
-                placeholder="e.g. Shared lunch"
+                placeholder={t.exampleNote}
                 className="mt-2 min-h-12 w-full rounded-xl border border-slate-300 px-3"
               />
             </div>
@@ -667,24 +766,24 @@ function resetDemoData() {
             {paymentError && <p role="alert" className="rounded-lg bg-red-50 p-3 text-sm font-medium text-red-800">{paymentError}</p>}
 
             <button type="submit" className="min-h-12 w-full rounded-xl bg-teal-700 px-4 font-semibold text-white hover:bg-teal-800">
-              Review payment
+              {t.reviewPayment}
             </button>
           </form>
         )}
 
         {paymentStep === 'review' && (
           <div className="mt-6">
-            <h3 className="text-lg font-bold">Check the details carefully</h3>
+            <h3 className="text-lg font-bold">{t.checkDetails}</h3>
             <div className="mt-4 space-y-4 rounded-xl bg-slate-50 p-4">
-              <div className="flex justify-between gap-3"><span className="text-slate-500">Recipient name</span><span className="text-right font-semibold">{isNewPayee ? newRecipientName.trim() : selectedPayee?.name}</span></div>
-              <div className="flex justify-between gap-3"><span className="text-slate-500">Demo account</span><span className="text-right font-semibold">{isNewPayee ? `•••• ${newRecipientAccount.slice(-4)}` : selectedPayee?.account}</span></div>
-              <div className="flex justify-between gap-3"><span className="text-slate-500">Amount</span><span className="font-bold">{formatMoney(amountPaise)}</span></div>
-              <div className="flex justify-between gap-3"><span className="text-slate-500">Demo fee</span><span className="font-semibold">{formatMoney(0)}</span></div>
-              {note.trim() && <div className="flex justify-between gap-3"><span className="text-slate-500">Note</span><span className="text-right">{note.trim()}</span></div>}
+              <div className="flex justify-between gap-3"><span className="text-slate-500">{t.recipientName}</span><span className="text-right font-semibold">{isNewPayee ? newRecipientName.trim() : selectedPayee?.name}</span></div>
+              <div className="flex justify-between gap-3"><span className="text-slate-500">{t.demoAccount}</span><span className="text-right font-semibold">{isNewPayee ? `•••• ${newRecipientAccount.slice(-4)}` : selectedPayee?.account}</span></div>
+              <div className="flex justify-between gap-3"><span className="text-slate-500">{t.amountLabel}</span><span className="font-bold">{formatMoney(amountPaise)}</span></div>
+              <div className="flex justify-between gap-3"><span className="text-slate-500">{t.demoFee}</span><span className="font-semibold">{formatMoney(0)}</span></div>
+              {note.trim() && <div className="flex justify-between gap-3"><span className="text-slate-500">{t.optionalNote}</span><span className="text-right">{note.trim()}</span></div>}
             </div>
-            <p className="mt-4 text-sm text-slate-600">Check the name and amount. A displayed name is not proof that a real bank account belongs to that person.</p>
-            <button type="button" onClick={continueToSafety} className="mt-5 min-h-12 w-full rounded-xl bg-teal-700 px-4 font-semibold text-white">Continue to safety check</button>
-            <button type="button" onClick={() => setPaymentStep('recipient')} className="mt-3 min-h-12 w-full rounded-xl border border-slate-300 px-4 font-semibold">Go back and edit</button>
+            <p className="mt-4 text-sm text-slate-600">{t.verifyNameAndAmount}</p>
+            <button type="button" onClick={continueToSafety} className="mt-5 min-h-12 w-full rounded-xl bg-teal-700 px-4 font-semibold text-white">{t.continueSafety}</button>
+            <button type="button" onClick={() => setPaymentStep('recipient')} className="mt-3 min-h-12 w-full rounded-xl border border-slate-300 px-4 font-semibold">{t.goBackEdit}</button>
           </div>
         )}
 
@@ -701,22 +800,21 @@ function resetDemoData() {
 
     <div>
       <p className="text-xs font-bold uppercase tracking-wider text-amber-800">
-        Your safety comes first
+        {t.safetyFirst}
       </p>
       <h3 className="mt-1 text-xl font-bold text-amber-950">
-        Pause before you pay
+        {t.pauseBeforePay}
       </h3>
       <p className="mt-2 leading-6 text-amber-950">
-        Scammers may pretend to be bank staff, police officers or people you
-        know. They may create urgency to make you act without checking.
+        {t.scamWarningIntro}
       </p>
     </div>
   </div>
 
   <div className="mt-4 space-y-3 rounded-xl bg-white p-4 text-sm text-slate-800">
-    <p><strong>Never share:</strong> your PIN, OTP or passwords.</p>
-    <p><strong>Verify independently:</strong> contact the person using a number you already trust.</p>
-    <p><strong>Remember:</strong> this demo never transfers real money.</p>
+    <p><strong>{t.neverShare}:</strong> {t.pinOtpPasswords}</p>
+    <p><strong>{t.verifyIndependently}:</strong> {t.trustedContactAdvice}</p>
+    <p><strong>{t.demoMoneyReminder}:</strong> {t.safetyChecksIntro}</p>
   </div>
 </div>
 
@@ -731,9 +829,9 @@ function resetDemoData() {
     </span>
 
     <div className="min-w-0">
-      <p className="font-bold text-teal-950">Saral Safety Coach</p>
+      <p className="font-bold text-teal-950">{t.safetyCoach}</p>
       <p className="mt-1 text-sm leading-6 text-teal-900">
-        Here are the checks to make before you continue.
+        {t.safetyChecksIntro}
       </p>
     </div>
   </div>
@@ -743,8 +841,7 @@ function resetDemoData() {
       <li className="flex items-start gap-2">
         <span aria-hidden="true">⚠️</span>
         <span>
-          <strong>New recipient:</strong> verify their details using a trusted,
-          independent source. The demo limit is ₹10,000.
+          <strong>{t.newRecipientWarning}:</strong> {t.newRecipientAdvice}
         </span>
       </li>
     )}
@@ -753,8 +850,7 @@ function resetDemoData() {
       <li className="flex items-start gap-2">
         <span aria-hidden="true">⚠️</span>
         <span>
-          <strong>Higher-value payment:</strong> pause and double-check the
-          amount and recipient before proceeding.
+          <strong>{t.highValueWarning}:</strong> {t.highValueAdvice}
         </span>
       </li>
     )}
@@ -763,8 +859,7 @@ function resetDemoData() {
       <li className="flex items-start gap-2">
         <span aria-hidden="true">👪</span>
         <span>
-          <strong>Guardian review:</strong> this payment will remain pending
-          in the demo until guardian approval is simulated.
+          <strong>{t.guardianReview}:</strong> {t.guardianPendingAdvice}
         </span>
       </li>
     )}
@@ -772,8 +867,7 @@ function resetDemoData() {
     <li className="flex items-start gap-2">
       <span aria-hidden="true">✓</span>
       <span>
-        Never proceed because someone is pressuring you. If the request came
-        from a call or message, verify it independently.
+        {t.pressureWarning}
       </span>
     </li>
   </ul>
@@ -786,15 +880,15 @@ function resetDemoData() {
       🛡️
     </span>
     <div>
-      <h3 className="font-bold text-slate-900">Saral Scam Shield</h3>
+      <h3 className="font-bold text-slate-900">{t.scamShield}</h3>
       <p className="mt-1 text-sm leading-6 text-slate-600">
-        Received a suspicious SMS or message? Check it for common warning signs before acting.
+        {t.scamShieldDescription}
       </p>
     </div>
   </div>
 
   <label htmlFor="scam-message" className="mt-4 block text-sm font-semibold">
-    Paste the suspicious message
+    {t.pasteSuspiciousMessage}
   </label>
   <textarea
     id="scam-message"
@@ -805,12 +899,12 @@ function resetDemoData() {
     }}
     rows={4}
     maxLength={2000}
-    placeholder="Example: Your account will be blocked today. Share your OTP immediately..."
+    placeholder={t.scamExample}
     className="mt-2 w-full rounded-xl border border-slate-300 p-3 text-sm focus:border-teal-700 focus:outline-none focus:ring-2 focus:ring-teal-100"
   />
 
   <p className="mt-1 text-xs text-slate-500">
-    Demo analysis only. Avoid pasting real account numbers, passwords, or OTPs.
+    {t.scamDemoPrivacy}
   </p>
 
   <button
@@ -819,7 +913,7 @@ function resetDemoData() {
     disabled={!scamMessage.trim()}
     className="mt-4 min-h-12 w-full rounded-xl bg-teal-700 px-4 font-semibold text-white hover:bg-teal-800 disabled:cursor-not-allowed disabled:opacity-50"
   >
-    Analyze message
+    {t.analyzeMessage}
   </button>
 
   {scamResult && (
@@ -835,25 +929,44 @@ function resetDemoData() {
     >
       <h4 className="font-bold text-slate-900">
         {scamResult.risk === 'high'
-          ? 'High-risk warning signs'
+          ? t.highRiskSigns
           : scamResult.risk === 'medium'
-            ? 'Warning signs found'
+            ? t.warningSignsFound
             : scamResult.risk === 'low'
-              ? 'No known patterns detected'
-              : 'Message check'}
+              ? t.noKnownPatterns
+              : t.messageCheck}
       </h4>
 
       <p className="mt-2 text-sm leading-6 text-slate-800">
-        {scamResult.summary}
+        {language === 'hi' &&
+scamResult.summary === 'Enter a message to check for warning signs.'
+  ? t.enterMessageToCheck
+  : scamResult.summary}
       </p>
 
       {scamResult.matches.length > 0 && (
         <ul className="mt-3 space-y-3">
           {scamResult.matches.map((pattern) => (
             <li key={pattern.id} className="text-sm">
-              <p className="font-semibold">{pattern.title}</p>
+              <p className="font-semibold">{language === 'hi'
+      ? ({
+          'otp-request': t.otpRequestTitle,
+          'urgent-threat': t.urgentThreatTitle,
+          'remote-access': t.remoteAccessTitle,
+          'payment-collect': t.suspiciousPaymentTitle,
+          'prize-claim': t.unexpectedPrizeTitle,
+        }[pattern.id] || pattern.title)
+      : pattern.title}</p>
               <p className="mt-1 leading-5 text-slate-700">
-                {pattern.explanation}
+                {language === 'hi'
+      ? ({
+          'otp-request': t.otpRequestExplanation,
+          'urgent-threat': t.urgentThreatExplanation,
+          'remote-access': t.remoteAccessExplanation,
+          'payment-collect': t.suspiciousPaymentExplanation,
+          'prize-claim': t.unexpectedPrizeExplanation,
+        }[pattern.id] || pattern.explanation)
+      : pattern.explanation}
               </p>
             </li>
           ))}
@@ -861,11 +974,20 @@ function resetDemoData() {
       )}
 
       <p className="mt-3 text-sm leading-6 text-slate-800">
-        <strong>Safer next step:</strong> {scamResult.advice}
-      </p>
+  <strong>{t.saferNextStep}:</strong>{' '}
+  {language === 'hi'
+    ? ({
+        'otp-request': t.otpRequestAdvice,
+        'urgent-threat': t.urgentThreatAdvice,
+        'remote-access': t.remoteAccessAdvice,
+        'payment-collect': t.suspiciousPaymentAdvice,
+        'prize-claim': t.unexpectedPrizeAdvice,
+      }[scamResult.matches[0]?.id] || scamResult.advice)
+    : scamResult.advice}
+</p>
 
       <p className="mt-3 text-xs text-slate-600">
-        This rule-based checker cannot confirm whether a message is genuine or fraudulent.
+        {t.scamCheckerDisclaimer}
       </p>
     </div>
   )}
@@ -873,46 +995,46 @@ function resetDemoData() {
 
 
             <fieldset>
-              <legend className="font-semibold">Did someone call or message you and ask you to send this money?</legend>
+              <legend className="font-semibold">{t.urgentRequestQuestion}</legend>
               <div className="mt-3 space-y-3">
                 <label className="flex min-h-12 items-center gap-3 rounded-xl border border-slate-200 p-3">
                   <input type="radio" name="urgent-request" value="yes" checked={urgentRequest === 'yes'} onChange={(event) => { setUrgentRequest(event.target.value); setPaymentError('') }} />
-                  <span>Yes, someone asked me to send it.</span>
+                  <span>{t.urgentRequestYes}</span>
                 </label>
                 <label className="flex min-h-12 items-center gap-3 rounded-xl border border-slate-200 p-3">
                   <input type="radio" name="urgent-request" value="no" checked={urgentRequest === 'no'} onChange={(event) => { setUrgentRequest(event.target.value); setPaymentError('') }} />
-                  <span>No, I am choosing this payment myself.</span>
+                  <span>{t.urgentRequestNo}</span>
                 </label>
               </div>
             </fieldset>
 
             {isNewPayee && (
               <div className="rounded-xl border border-amber-200 p-3 text-sm">
-                <strong>New recipient:</strong> Please verify the recipient independently. Demo limit: ₹10,000.
+                <strong>{t.newRecipientSafety}</strong> {t.verifyRecipientAdvice}
               </div>
             )}
             {amountPaise > paymentConfig.maxPaymentPaise && (
               <div className="rounded-xl border border-amber-200 p-3 text-sm">
-                <strong>Large payment:</strong> Check the amount carefully before continuing.
+                <strong>{t.largePayment}</strong> {t.checkAmountAdvice}
               </div>
             )}
 
             <label className="flex items-start gap-3 rounded-xl border border-slate-200 p-3">
               <input type="checkbox" checked={safetyAcknowledged} onChange={(event) => { setSafetyAcknowledged(event.target.checked); setPaymentError('') }} className="mt-1" />
-              <span>I have checked the recipient and amount, and I understand this is a demo.</span>
+              <span>{t.safetyAcknowledgement}</span>
             </label>
 
             {paymentError && <p role="alert" className="rounded-lg bg-red-50 p-3 text-sm font-medium text-red-800">{paymentError}</p>}
-            <button type="button" onClick={continueToPin} className="min-h-12 w-full rounded-xl bg-teal-700 px-4 font-semibold text-white">Continue to demo PIN</button>
-            <button type="button" onClick={() => setPaymentStep('review')} className="min-h-12 w-full rounded-xl border border-slate-300 px-4 font-semibold">Back to review</button>
+            <button type="button" onClick={continueToPin} className="min-h-12 w-full rounded-xl bg-teal-700 px-4 font-semibold text-white">{t.continueDemoPin}</button>
+            <button type="button" onClick={() => setPaymentStep('review')} className="min-h-12 w-full rounded-xl border border-slate-300 px-4 font-semibold">{t.backToReview}</button>
           </div>
         )}
 
         {paymentStep === 'pin' && (
           <form onSubmit={completePayment} className="mt-6">
-            <h3 className="text-lg font-bold">Confirm your demo payment</h3>
-            <p className="mt-2 text-slate-600">You are simulating a payment of <strong>{formatMoney(amountPaise)}</strong> to <strong>{isNewPayee ? newRecipientName.trim() : selectedPayee?.name}</strong>.</p>
-            <label htmlFor="payment-pin" className="mt-5 block font-semibold">Enter demo PIN</label>
+            <h3 className="text-lg font-bold">{t.confirmDemoPaymentTitle}</h3>
+            <p className="mt-2 text-slate-600">{t.simulatingPayment} <strong>{formatMoney(amountPaise)}</strong> {t.to} <strong>{isNewPayee ? newRecipientName.trim() : selectedPayee?.name}</strong>.</p>
+            <label htmlFor="payment-pin" className="mt-5 block font-semibold">{t.enterDemoPin}</label>
             <input
               id="payment-pin"
               type="password"
@@ -923,13 +1045,13 @@ function resetDemoData() {
               required
               value={paymentPin}
               onChange={(event) => { setPaymentPin(event.target.value.replace(/\D/g, '').slice(0, 4)); setPaymentError('') }}
-              placeholder="4-digit demo PIN"
+              placeholder={t.demoPinPlaceholder}
               className="mt-2 min-h-14 w-full rounded-xl border border-slate-300 px-4 text-xl tracking-[0.4em]"
             />
-            <p className="mt-2 text-sm text-slate-500">For this fictional demo only, use PIN 1234.</p>
+            <p className="mt-2 text-sm text-slate-500">{t.demoPinHelp}</p>
             {paymentError && <p role="alert" className="mt-3 rounded-lg bg-red-50 p-3 text-sm font-medium text-red-800">{paymentError}</p>}
-            <button type="submit" className="mt-5 min-h-12 w-full rounded-xl bg-teal-700 px-4 font-semibold text-white">Confirm demo payment</button>
-            <button type="button" onClick={() => setPaymentStep('safety')} className="mt-3 min-h-12 w-full rounded-xl border border-slate-300 px-4 font-semibold">Back to safety check</button>
+            <button type="submit" className="mt-5 min-h-12 w-full rounded-xl bg-teal-700 px-4 font-semibold text-white">{t.confirmDemoPayment}</button>
+            <button type="button" onClick={() => setPaymentStep('safety')} className="mt-3 min-h-12 w-full rounded-xl border border-slate-300 px-4 font-semibold">{t.backToSafety}</button>
           </form>
         )}
       </section>
@@ -1019,57 +1141,57 @@ function renderHistory() {
     <section className="space-y-6">
       <header>
         <p className="text-sm font-semibold uppercase tracking-wide text-teal-800">
-          Your account
+          {t.yourAccount}
         </p>
         <h2 className="mt-1 text-2xl font-bold text-slate-900">
-          Transaction history
+          {t.historyPageTitle}
         </h2>
         <p className="mt-2 text-slate-600">
-          See where your money goes and when money comes in.
+          {t.historyPageDescription}
         </p>
       </header>
 
       <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
         <article className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
           <p className="text-sm font-medium text-slate-600">
-            Total money received
+            {t.totalMoneyReceived}
           </p>
           <p className="mt-2 break-words text-2xl font-bold text-green-800">
             {formatMoney(totalMoneyIn)}
           </p>
           <p className="mt-1 text-sm text-slate-500">
-            Across all your demo transactions
+            {t.acrossDemoTransactions}
           </p>
         </article>
 
         <article className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
           <p className="text-sm font-medium text-slate-600">
-            Total money sent or spent
+            {t.totalMoneySent}
           </p>
           <p className="mt-2 break-words text-2xl font-bold text-slate-900">
             {formatMoney(totalMoneyOut)}
           </p>
           <p className="mt-1 text-sm text-slate-500">
-            Across all your demo transactions
+            {t.acrossDemoTransactions}
           </p>
         </article>
       </div>
 
       <section className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm sm:p-5">
-        <h3 className="text-lg font-bold">Find a transaction</h3>
+        <h3 className="text-lg font-bold">{t.findTransaction}</h3>
 
         <label
           htmlFor="history-search"
           className="mt-4 block font-semibold"
         >
-          Search by name, date or note
+          {t.searchHistoryLabel}
         </label>
         <input
           id="history-search"
           type="search"
           value={historySearch}
           onChange={(event) => setHistorySearch(event.target.value)}
-          placeholder="e.g. grocery or electricity"
+          placeholder={t.searchHistoryPlaceholder}
           className="mt-2 min-h-12 w-full rounded-xl border border-slate-300 bg-white px-3 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-teal-700"
         />
 
@@ -1077,7 +1199,7 @@ function renderHistory() {
           htmlFor="history-type"
           className="mt-4 block font-semibold"
         >
-          Transaction type
+          {t.transactionType}
         </label>
         <select
           id="history-type"
@@ -1085,15 +1207,15 @@ function renderHistory() {
           onChange={(event) => setHistoryType(event.target.value)}
           className="mt-2 min-h-12 w-full rounded-xl border border-slate-300 bg-white px-3 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-teal-700"
         >
-          <option value="all">All transactions</option>
-          <option value="debit">Money sent or spent</option>
-          <option value="credit">Money received</option>
+          <option value="all">{t.allTransactions}</option>
+          <option value="debit">{t.moneySent}</option>
+          <option value="credit">{t.moneyReceived}</option>
         </select>
 
         <div className="mt-4 flex flex-wrap items-center justify-between gap-3">
           <p className="text-sm text-slate-600" aria-live="polite">
-            Showing {filteredTransactions.length} of {myTransactions.length}{' '}
-            transactions
+            {t.showingTransactions} {filteredTransactions.length} {t.ofTransactions} {myTransactions.length}{' '}
+            {t.transactions}
           </p>
           <button
             type="button"
@@ -1103,7 +1225,7 @@ function renderHistory() {
             }}
             className="min-h-11 rounded-lg px-3 font-semibold text-teal-800 underline underline-offset-4 focus-visible:outline-2 focus-visible:outline-teal-700"
           >
-            Clear filters
+            {t.clearFilters}
           </button>
         </div>
       </section>
@@ -1114,16 +1236,15 @@ function renderHistory() {
         className="flex min-h-14 w-full items-center justify-center gap-2 rounded-xl bg-teal-800 px-4 py-3 font-semibold text-white hover:bg-teal-900 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-teal-800"
       >
         <span aria-hidden="true">↓</span>
-        Download CSV statement
+        {t.downloadCsvStatement}
       </button>
 
       <p className="text-sm text-slate-600">
-        The CSV contains all transactions for your selected demo account,
-        not just the results currently shown by your filters.
+        {t.csvStatementDescription}
       </p>
 
       <section>
-        <h3 className="mb-3 text-lg font-bold">Your transactions</h3>
+        <h3 className="mb-3 text-lg font-bold">{t.yourTransactions}</h3>
 
         <div className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
           {filteredTransactions.map((transaction) => {
@@ -1147,23 +1268,26 @@ function renderHistory() {
 
                 <div className="min-w-0 flex-1">
                   <p className="break-words font-semibold text-slate-900">
-                    {transaction.title}
-                  </p>
+  {translateTransactionTitle(transaction.title, language)}
+</p>
                   <p className="mt-1 text-sm text-slate-500">
                     {transaction.date}
                   </p>
                   <p className="mt-1 text-sm font-medium text-slate-700">
-                    {isCredit ? 'Money received' : 'Money sent or spent'}
+                    {isCredit ? t.moneyReceived : t.moneySent}
                   </p>
 
                   {transaction.note && (
                     <p className="mt-1 break-words text-sm text-slate-600">
-                      Note: {transaction.note}
+                      {t.noteLabel}: {transaction.note}
                     </p>
                   )}
 
                   <p className="mt-2 text-sm text-slate-600">
-                    Status: {transaction.status || 'Completed'}
+                    {t.statusLabel}:{' '}
+  {language === 'hi' && transaction.status === 'Completed'
+    ? t.completed
+    : transaction.status || t.completed}
                   </p>
                 </div>
 
@@ -1184,10 +1308,10 @@ function renderHistory() {
           {filteredTransactions.length === 0 && (
             <div className="px-5 py-10 text-center">
               <p className="font-semibold text-slate-800">
-                No matching transactions
+                {t.noMatchingTransactions}
               </p>
               <p className="mt-2 text-sm text-slate-600">
-                Try another search or clear your filters to see all transactions.
+                {t.tryAnotherSearch}
               </p>
               <button
                 type="button"
@@ -1197,7 +1321,7 @@ function renderHistory() {
                 }}
                 className="mt-4 min-h-12 rounded-xl border border-slate-300 px-4 font-semibold text-slate-800"
               >
-                Show all transactions
+                {t.showAllTransactions}
               </button>
             </div>
           )}
@@ -1209,25 +1333,39 @@ function renderHistory() {
         onClick={() => setActiveTab('Home')}
         className="min-h-12 w-full rounded-xl border border-slate-300 bg-white px-4 font-semibold text-slate-800 hover:bg-slate-50 focus-visible:outline-2 focus-visible:outline-teal-700"
       >
-        Back to Home
+        {t.backToHome}
       </button>
     </section>
   )
 }
 
   function renderPlaceholder() {
-    const content = {
-      History: { title: 'Transaction history', description: 'Your demo transactions will appear here.', detail: 'The History screen with search and filters is a supporting feature.' },
-      Services: { title: 'Banking services', description: 'Manage everyday banking requests.', detail: 'Demo service requests will be added here.' },
-      Help: { title: 'How can we help?', description: 'Get clear answers and learn how to stay safe.', detail: 'FAQs and scam guidance will be added here.' },
-    }
+    
+const content = {
+  History: {
+    title: t.transactionHistory,
+    description: t.demoTransactionsDescription,
+    detail: t.historyDetail,
+  },
+  Services: {
+    title: t.bankingServices,
+    description: t.bankingServicesDescription,
+    detail: t.servicesDetail,
+  },
+  Help: {
+    title: t.helpTitle,
+    description: t.helpDescription,
+    detail: t.helpDetail,
+  },
+}
+
     const page = content[activeTab]
     return (
       <section className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
         <h2 className="text-2xl font-bold">{page.title}</h2>
         <p className="mt-2 text-slate-700">{page.description}</p>
         <p className="mt-3 text-sm leading-6 text-slate-600">{page.detail}</p>
-        <button type="button" onClick={() => setActiveTab('Home')} className="mt-6 min-h-12 rounded-xl bg-teal-700 px-5 font-semibold text-white">Back to Home</button>
+        <button type="button" onClick={() => setActiveTab('Home')} className="mt-6 min-h-12 rounded-xl bg-teal-700 px-5 font-semibold text-white">{t.backToHome}</button>
       </section>
     )
   }
@@ -1297,7 +1435,7 @@ function renderHistory() {
             return (
               <button key={item.id} type="button" onClick={() => item.id === 'Pay' ? openPay() : setActiveTab(item.id)} aria-current={active ? 'page' : undefined} className={`flex min-h-16 flex-col items-center justify-center gap-1 px-1 text-xs font-semibold focus-visible:outline-2 focus-visible:outline-teal-700 sm:text-sm ${active ? 'bg-teal-50 text-teal-800' : 'text-slate-600 hover:bg-slate-50'}`}>
                 <span aria-hidden="true" className="text-xl leading-6">{item.icon}</span>
-                <span>{item.id}</span>
+                <span>{t[item.label]}</span>
               </button>
             )
           })}
