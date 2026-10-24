@@ -177,6 +177,8 @@ const en = {
   insufficientDemoBalance: 'Your demo balance is too low for this payment.',
   enterMessageToCheck: 'Enter a message to check for warning signs.',
 neverSharePinOtpPassword: 'Never share your PIN, OTP, or password.',
+resetConfirmation: 'Reset all demo balances, recipients and transactions to their original values?',
+settings: 'Settings',
 }
 
 export default en

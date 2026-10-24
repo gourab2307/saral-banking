@@ -21,6 +21,7 @@ const navigation = [
   { id: 'History', label: 'history', icon: '↻' },
   { id: 'Services', label: 'services', icon: '▦' },
   { id: 'Help', label: 'help', icon: '?' },
+  { id: 'Settings', label: 'settings', icon: '⚙' },
 ]
 
 const formatMoney = (paise) =>
@@ -410,9 +411,7 @@ if (recipientIsNew && amountPaise > paymentConfig.newPayeeLimitPaise) {
   }
 
 function resetDemoData() {
-  const confirmed = window.confirm(
-    'Reset all demo balances, recipients and transactions to their original values?'
-  )
+  const confirmed = window.confirm(t.resetConfirmation)
 
   if (!confirmed) return
 
@@ -1348,18 +1347,138 @@ const content = {
     detail: t.historyDetail,
   },
   Services: {
-    title: t.bankingServices,
-    description: t.bankingServicesDescription,
-    detail: t.servicesDetail,
+    title: language === 'hi' ? 'बैंकिंग सेवाएँ' : 'Banking Services',
+    description:
+      language === 'hi'
+        ? 'अपने डेमो खाते की सेवाएँ आसानी से इस्तेमाल करें।'
+        : 'Access your demo account services in one place.',
+    detail:
+      language === 'hi'
+        ? 'लेन-देन का विवरण डाउनलोड करें, खाते की जानकारी देखें और लाभार्थियों को प्रबंधित करें। ये सभी सुविधाएँ डेमो डेटा का उपयोग करती हैं।'
+        : 'Download transaction statements, view account information and manage beneficiaries. These features use demo data.',
   },
   Help: {
-    title: t.helpTitle,
-    description: t.helpDescription,
-    detail: t.helpDetail,
+    title: language === 'hi' ? 'सहायता केंद्र' : 'Help Centre',
+    description:
+      language === 'hi'
+        ? 'डिजिटल बैंकिंग में सहायता और सुरक्षा संबंधी सुझाव पाएँ।'
+        : 'Get guidance on digital banking and staying safe.',
+    detail:
+      language === 'hi'
+        ? 'अपना डेमो PIN केवल इस अभ्यास के लिए इस्तेमाल करें। अपना वास्तविक PIN, OTP या पासवर्ड किसी के साथ साझा न करें। संदिग्ध भुगतान अनुरोधों को मंज़ूरी देने से पहले उनकी जाँच करें।'
+        : 'Use the demo PIN only for this practice app. Never share your real PIN, OTP or password. Check suspicious payment requests before approving them.',
   },
 }
 
-    const page = content[activeTab]
+    if (activeTab === 'Settings') {
+  return (
+    <section className="space-y-4">
+      <div>
+        <h2 className="text-2xl font-bold">
+          {language === 'hi' ? 'सेटिंग्स' : 'Settings'}
+        </h2>
+        <p className="mt-2 text-slate-600">
+          {language === 'hi'
+            ? 'अपने बैंकिंग अनुभव को अपनी ज़रूरत के अनुसार बनाएँ।'
+            : 'Customize your banking experience.'}
+        </p>
+      </div>
+
+      <div className="rounded-2xl border border-slate-200 bg-white p-5">
+        <h3 className="font-bold">
+          {language === 'hi' ? 'भाषा' : 'Language'}
+        </h3>
+        <p className="mt-1 text-sm text-slate-600">
+          {language === 'hi'
+            ? 'अपनी पसंद की भाषा चुनें।'
+            : 'Choose your preferred language.'}
+        </p>
+
+        <div className="mt-3 flex gap-3">
+          <button
+            type="button"
+            onClick={() => {
+              setLanguage('en')
+              localStorage.setItem('saral-language', 'en')
+            }}
+            className={`min-h-11 rounded-xl px-4 font-semibold ${
+              language === 'en'
+                ? 'bg-teal-800 text-white'
+                : 'border border-slate-300'
+            }`}
+          >
+            English
+          </button>
+
+          <button
+            type="button"
+            onClick={() => {
+              setLanguage('hi')
+              localStorage.setItem('saral-language', 'hi')
+            }}
+            className={`min-h-11 rounded-xl px-4 font-semibold ${
+              language === 'hi'
+                ? 'bg-teal-800 text-white'
+                : 'border border-slate-300'
+            }`}
+          >
+            हिन्दी
+          </button>
+        </div>
+      </div>
+
+      <div className="rounded-2xl border border-slate-200 bg-white p-5">
+        <h3 className="font-bold">
+          {language === 'hi' ? 'बैलेंस की दृश्यता' : 'Balance visibility'}
+        </h3>
+        <p className="mt-1 text-sm text-slate-600">
+          {language === 'hi'
+            ? 'होम स्क्रीन पर अपना डेमो बैलेंस दिखाएँ या छिपाएँ।'
+            : 'Show or hide your demo balance on the Home screen.'}
+        </p>
+
+        <button
+          type="button"
+          onClick={() => setBalanceVisible(!balanceVisible)}
+          className="mt-3 min-h-11 rounded-xl border border-slate-300 px-4 font-semibold"
+        >
+          {balanceVisible
+            ? language === 'hi' ? 'बैलेंस छिपाएँ' : 'Hide balance'
+            : language === 'hi' ? 'बैलेंस दिखाएँ' : 'Show balance'}
+        </button>
+      </div>
+
+      <div className="rounded-2xl border border-slate-200 bg-white p-5">
+        <h3 className="font-bold">
+          {language === 'hi' ? 'डेमो डेटा रीसेट करें' : 'Reset demo data'}
+        </h3>
+        <p className="mt-1 text-sm text-slate-600">
+          {language === 'hi'
+            ? 'डेमो बैलेंस, प्राप्तकर्ताओं और लेन-देन को मूल स्थिति में लौटाएँ।'
+            : 'Restore demo balances, recipients and transactions to their original values.'}
+        </p>
+
+        <button
+          type="button"
+          onClick={resetDemoData}
+          className="mt-3 min-h-11 rounded-xl bg-red-700 px-4 font-semibold text-white hover:bg-red-800"
+        >
+          {t.resetDemoData}
+        </button>
+      </div>
+
+      <button
+        type="button"
+        onClick={() => setActiveTab('Home')}
+        className="min-h-12 rounded-xl bg-teal-700 px-5 font-semibold text-white"
+      >
+        {t.backToHome}
+      </button>
+    </section>
+  )
+}
+
+const page = content[activeTab]
     return (
       <section className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
         <h2 className="text-2xl font-bold">{page.title}</h2>
@@ -1420,16 +1539,16 @@ const content = {
         </div>
       </header>
 
-      <main className="mx-auto max-w-3xl px-4 pb-28 pt-6 sm:px-6 sm:pt-8">
+      <main className="mx-auto max-w-3xl px-4 pb-40 pt-6 sm:px-6 sm:pb-28 sm:pt-8">
         {activeTab === 'Home' && renderHome()}
         {activeTab === 'Pay' && renderPayment()}
         {activeTab === 'History' && renderHistory()}
 
-        {['Services', 'Help'].includes(activeTab) && renderPlaceholder()}
+        {['Services', 'Help', 'Settings'].includes(activeTab) && renderPlaceholder()}
       </main>
 
       <nav aria-label="Main navigation" className="fixed inset-x-0 bottom-0 z-10 border-t border-slate-200 bg-white pb-[env(safe-area-inset-bottom)]">
-        <div className="mx-auto grid max-w-3xl grid-cols-5">
+        <div className="mx-auto grid max-w-3xl grid-cols-3 sm:grid-cols-6">
           {navigation.map((item) => {
             const active = activeTab === item.id
             return (
