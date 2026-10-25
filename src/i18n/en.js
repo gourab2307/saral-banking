@@ -179,6 +179,7 @@ const en = {
 neverSharePinOtpPassword: 'Never share your PIN, OTP, or password.',
 resetConfirmation: 'Reset all demo balances, recipients and transactions to their original values?',
 settings: 'Settings',
+learn: 'Learn',
 }
 
 export default en

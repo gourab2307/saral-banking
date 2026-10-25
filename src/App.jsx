@@ -1,6 +1,7 @@
 
 import { useEffect, useState } from 'react'
 import { customers } from './data/customers.js'
+import { banks } from './data/banks'
 import { paymentConfig } from './data/config.js'
 import { initialPayees } from './data/payees.js'
 import { initialTransactions } from './data/transactions.js'
@@ -19,9 +20,10 @@ const navigation = [
   { id: 'Home', label: 'home', icon: '⌂' },
   { id: 'Pay', label: 'pay', icon: '↗' },
   { id: 'History', label: 'history', icon: '↻' },
+  
   { id: 'Services', label: 'services', icon: '▦' },
   { id: 'Help', label: 'help', icon: '?' },
-  { id: 'Settings', label: 'settings', icon: '⚙' },
+  
 ]
 
 const formatMoney = (paise) =>
@@ -82,6 +84,10 @@ function App() {
   const [scamMessage, setScamMessage] = useState('')
   const [scamResult, setScamResult] = useState(null)
   const [selectedCustomer, setSelectedCustomer] = useState(customers[0])
+  const [selectedBankId, setSelectedBankId] = useState(
+  () => localStorage.getItem('saral-bank') || 'saral-teal'
+)
+
   const [pin, setPin] = useState('')
   const [error, setError] = useState('')
   const [signedIn, setSignedIn] = useState(false)
@@ -89,8 +95,9 @@ function App() {
 
   const [historySearch, setHistorySearch] = useState('')
   const [historyType, setHistoryType] = useState('all')
-
   const [balanceVisible, setBalanceVisible] = useState(true)
+  const [quizAnswers, setQuizAnswers] = useState({})
+  const [quizSubmitted, setQuizSubmitted] = useState(false)
   
 
   
@@ -469,7 +476,15 @@ function resetDemoData() {
           </div>
         </div>
 
-        <section className="rounded-2xl bg-teal-800 p-5 text-white shadow-sm sm:p-6">
+        
+<section
+  className="rounded-2xl p-5 text-white shadow-sm sm:p-6"
+  style={{
+    backgroundColor:
+      banks.find((bank) => bank.id === selectedBankId)?.primary || '#0F766E',
+  }}
+>
+
 
           <div className="flex items-start justify-between gap-3">
             <div>
@@ -521,9 +536,25 @@ function resetDemoData() {
                 key={item.label}
                 type="button"
                 onClick={item.action}
-                className={`flex min-h-24 flex-col items-start justify-center rounded-xl border border-slate-200 bg-white p-4 text-left shadow-sm hover:border-teal-600 hover:bg-teal-50 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-teal-700 ${simpleMode ? 'min-h-28 text-lg' : ''}`}
+                
+className={`flex min-h-24 flex-col items-start justify-center rounded-xl border p-4 text-left shadow-sm focus-visible:outline-2 focus-visible:outline-offset-2 ${simpleMode ? 'min-h-28 text-lg' : ''}`}
+style={
+  item.label === t.sendMoney
+    ? {
+        backgroundColor: banks.find((bank) => bank.id === selectedBankId)?.primary || '#0F766E',
+        borderColor: banks.find((bank) => bank.id === selectedBankId)?.primary || '#0F766E',
+        color: '#FFFFFF',
+      }
+    : undefined
+}
+
               >
-                <span aria-hidden="true" className="text-2xl text-teal-800">{item.icon}</span>
+                <span
+  aria-hidden="true"
+  className={`text-2xl ${item.label === t.sendMoney ? 'text-white' : 'text-teal-800'}`}
+>
+  {item.icon}
+</span>
                 <span className="mt-2 font-semibold">{item.label}</span>
               </button>
             ))}
@@ -1427,6 +1458,55 @@ const content = {
         </div>
       </div>
 
+<div className="rounded-2xl border border-slate-200 bg-white p-5">
+  <h3 className="font-bold">
+  {language === 'hi' ? 'अपना बैंक चुनें' : 'Choose your bank'}
+</h3>
+  <p className="mt-1 text-sm text-slate-600">
+    {language === 'hi'
+  ? 'डेमो बैंक के रंग और लोगो बदलें। आपके खाते का डेटा वही रहेगा।'
+  : "Switch the demo bank's colours and logo. Your account data stays the same."}
+  </p>
+
+  <div className="mt-4 space-y-3">
+    {banks.map((bank) => (
+      <button
+        key={bank.id}
+        type="button"
+        onClick={() => {
+          setSelectedBankId(bank.id)
+          localStorage.setItem('saral-bank', bank.id)
+        }}
+        aria-pressed={selectedBankId === bank.id}
+        className={`flex min-h-16 w-full items-center gap-3 rounded-xl border p-3 text-left ${
+          selectedBankId === bank.id
+            ? 'border-teal-700 bg-teal-50 ring-1 ring-teal-700'
+            : 'border-slate-200 hover:border-teal-500'
+        }`}
+      >
+        <span
+          className="flex h-11 w-11 items-center justify-center rounded-xl font-bold text-white"
+          style={{ backgroundColor: bank.primary }}
+        >
+          {bank.initials}
+        </span>
+        <span className="flex-1">
+          <span className="block font-semibold">{bank.name}</span>
+          <span className="block text-sm text-slate-500">
+            {selectedBankId === bank.id
+  ? (language === 'hi' ? 'चुना गया बैंक' : 'Selected bank')
+  : (language === 'hi' ? 'यह बैंक चुनें' : 'Choose this bank')}
+          </span>
+        </span>
+        {selectedBankId === bank.id && (
+          <span className="font-bold text-teal-800" aria-label="Selected">✓</span>
+        )}
+      </button>
+    ))}
+  </div>
+</div>
+
+
       <div className="rounded-2xl border border-slate-200 bg-white p-5">
         <h3 className="font-bold">
           {language === 'hi' ? 'बैलेंस की दृश्यता' : 'Balance visibility'}
@@ -1473,6 +1553,400 @@ const content = {
         className="min-h-12 rounded-xl bg-teal-700 px-5 font-semibold text-white"
       >
         {t.backToHome}
+      </button>
+    </section>
+  )
+}
+
+if (activeTab === 'Services') {
+  return (
+    <section className="space-y-4">
+      <div className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
+        <h2 className="text-2xl font-bold">
+          {language === 'hi' ? 'बैंकिंग सेवाएँ' : 'Banking Services'}
+        </h2>
+        <p className="mt-2 text-slate-600">
+          {language === 'hi'
+            ? 'अपने डेमो खाते की सेवाएँ चुनें।'
+            : 'Choose a service for your demo account.'}
+        </p>
+      </div>
+
+      <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
+        <h3 className="text-lg font-bold">
+          {language === 'hi' ? 'खाता विवरण' : 'Account overview'}
+        </h3>
+        <p className="mt-2 text-slate-600">
+          {language === 'hi' ? 'खाताधारक' : 'Account holder'}: {selectedCustomer.name}
+        </p>
+        <p className="mt-1 text-slate-600">
+          {language === 'hi' ? 'डेमो बैलेंस' : 'Demo balance'}:{' '}
+          {balanceVisible
+            ? formatMoney(balances[selectedCustomer.id])
+            : '••••••'}
+        </p>
+        <p className="mt-2 text-xs text-slate-500">
+          {language === 'hi'
+            ? 'यह केवल अभ्यास के लिए काल्पनिक खाता है।'
+            : 'This is a fictional account for practice only.'}
+        </p>
+      </div>
+
+      <div className="grid gap-3 sm:grid-cols-2">
+        <button
+          type="button"
+          onClick={() => setActiveTab('History')}
+          className="min-h-24 rounded-2xl border border-slate-200 bg-white p-5 text-left shadow-sm hover:border-teal-600 focus-visible:outline-2 focus-visible:outline-teal-700"
+        >
+          <span className="block text-lg font-bold">
+            {language === 'hi' ? 'लेन-देन का विवरण' : 'Transaction history'}
+          </span>
+          <span className="mt-1 block text-sm text-slate-600">
+            {language === 'hi'
+              ? 'पिछले लेन-देन देखें।'
+              : 'View your previous demo transactions.'}
+          </span>
+        </button>
+
+        <button
+          type="button"
+          onClick={downloadCsvStatement}
+          className="min-h-24 rounded-2xl border border-slate-200 bg-white p-5 text-left shadow-sm hover:border-teal-600 focus-visible:outline-2 focus-visible:outline-teal-700"
+        >
+          <span className="block text-lg font-bold">
+            {language === 'hi' ? 'स्टेटमेंट डाउनलोड करें' : 'Download statement'}
+          </span>
+          <span className="mt-1 block text-sm text-slate-600">
+            {language === 'hi'
+              ? 'लेन-देन की CSV फ़ाइल डाउनलोड करें।'
+              : 'Export transactions as a CSV file.'}
+          </span>
+        </button>
+  
+        <button
+          type="button"
+          onClick={openPay}
+          className="min-h-24 rounded-2xl border p-5 text-left text-white shadow-sm focus-visible:outline-2"
+          style={{
+          backgroundColor: 'purple',
+          borderColor: 'purple',
+          }}
+          >
+        <span className="block text-lg font-bold">
+         {language === 'hi' ? 'पैसे भेजें' : 'Send money'}
+        </span>
+        <span className="mt-1 block text-sm text-white">
+         {language === 'hi'
+            ? 'प्राप्तकर्ता चुनें और डेमो भुगतान शुरू करें।'
+            : 'Choose a recipient and start a simulated payment.'}
+        </span>
+        </button>
+
+        <button
+          type="button"
+          onClick={() => setActiveTab('Help')}
+          className="min-h-24 rounded-2xl border border-slate-200 bg-white p-5 text-left shadow-sm hover:border-teal-600 focus-visible:outline-2 focus-visible:outline-teal-700"
+        >
+          <span className="block text-lg font-bold">
+            {language === 'hi' ? 'सहायता और सुरक्षा' : 'Help and safety'}
+          </span>
+          <span className="mt-1 block text-sm text-slate-600">
+            {language === 'hi'
+              ? 'डिजिटल बैंकिंग सुरक्षा सुझाव देखें।'
+              : 'Get digital banking safety guidance.'}
+          </span>
+        </button>
+
+<button
+  type="button"
+  onClick={() => setActiveTab('Learn')}
+  className="min-h-24 rounded-2xl border border-slate-200 bg-white p-5 text-left shadow-sm hover:border-teal-600 focus-visible:outline-2 focus-visible:outline-teal-700"
+>
+  <span className="block text-lg font-bold">
+    {language === 'hi' ? 'बैंकिंग सीखें' : 'Learn banking'}
+  </span>
+  <span className="mt-1 block text-sm text-slate-600">
+    {language === 'hi'
+      ? 'बचत और सुरक्षित डिजिटल बैंकिंग के बारे में जानें।'
+      : 'Learn about saving and safer digital banking.'}
+  </span>
+</button>
+
+      </div>
+    </section>
+  )
+}
+
+if (activeTab === 'Learn') {
+  return (
+    <section className="space-y-5">
+      <div className="rounded-2xl bg-teal-800 p-6 text-white shadow-sm">
+        <p className="text-sm font-semibold text-teal-100">
+          {language === 'hi' ? 'सरल बैंकिंग' : 'SARAL BANKING'}
+        </p>
+        <h2 className="mt-2 text-2xl font-bold">
+          {language === 'hi' ? 'सीखें और सुरक्षित रहें' : 'Learn and stay safe'}
+        </h2>
+        <p className="mt-2 leading-6 text-teal-50">
+          {language === 'hi'
+            ? 'डिजिटल बैंकिंग को आसान चरणों में समझें।'
+            : 'Understand digital banking through simple lessons.'}
+        </p>
+      </div>
+
+      <article className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
+        <h3 className="text-lg font-bold">
+          {language === 'hi' ? '1. OTP और PIN सुरक्षित रखें' : '1. Protect your OTP and PIN'}
+        </h3>
+        <p className="mt-2 leading-6 text-slate-600">
+          {language === 'hi'
+            ? 'अपना OTP, PIN या पासवर्ड किसी के साथ साझा न करें। बैंक कर्मचारी भी आपसे ये गोपनीय जानकारी नहीं माँगने चाहिए।'
+            : 'Never share your OTP, PIN or password. Bank staff should not ask you to disclose these secrets.'}
+        </p>
+      </article>
+
+      <article className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
+        <h3 className="text-lg font-bold">
+          {language === 'hi' ? '2. भुगतान करने से पहले जाँचें' : '2. Check before you pay'}
+        </h3>
+        <p className="mt-2 leading-6 text-slate-600">
+          {language === 'hi'
+            ? 'भुगतान से पहले प्राप्तकर्ता का नाम और राशि ध्यान से जाँचें। जल्दबाज़ी या डराने वाले संदेशों में आकर भुगतान न करें।'
+            : 'Check the recipient and amount before paying. Do not let urgent or threatening messages pressure you into sending money.'}
+        </p>
+      </article>
+
+      <article className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
+        <h3 className="text-lg font-bold">
+          {language === 'hi' ? '3. नकली संदेश पहचानें' : '3. Spot suspicious messages'}
+        </h3>
+        <p className="mt-2 leading-6 text-slate-600">
+          {language === 'hi'
+            ? 'अनजान लिंक पर क्लिक न करें और पुरस्कार पाने के लिए पैसे न भेजें। बैंक से संपर्क करने के लिए उसके आधिकारिक माध्यम का उपयोग करें।'
+            : 'Avoid unknown links and never pay a fee to claim an unexpected prize. Contact your bank through its official channels.'}
+        </p>
+      </article>
+
+<article className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
+  <h3 className="text-lg font-bold">
+    {language === 'hi' ? '4. छोटा सुरक्षा क्विज़' : '4. Quick safety quiz'}
+  </h3>
+
+  <p className="mt-2 text-sm text-slate-600">
+    {language === 'hi'
+      ? 'सही उत्तर चुनें और अपनी जानकारी जाँचें।'
+      : 'Choose the safest answer to test your knowledge.'}
+  </p>
+
+  {[
+    {
+      question: language === 'hi'
+        ? 'कोई व्यक्ति फोन पर आपका OTP माँगता है। आप क्या करेंगे?'
+        : 'Someone asks for your OTP over the phone. What should you do?',
+      options: language === 'hi'
+        ? ['OTP साझा करें', 'कॉल काटें और OTP साझा न करें', 'उन्हें PIN भी बताएँ']
+        : ['Share the OTP', 'Do not share it and end the call', 'Tell them your PIN too'],
+      correct: 1,
+    },
+    {
+      question: language === 'hi'
+        ? 'पैसे भेजने से पहले क्या जाँचना चाहिए?'
+        : 'What should you check before sending money?',
+      options: language === 'hi'
+        ? ['केवल रंगीन लोगो', 'प्राप्तकर्ता और राशि', 'कुछ भी नहीं']
+        : ['Only the logo', 'The recipient and amount', 'Nothing'],
+      correct: 1,
+    },
+    {
+      question: language === 'hi'
+        ? 'अनजान संदेश कहता है कि पुरस्कार पाने के लिए पैसे भेजें।'
+        : 'An unknown message asks you to pay to claim a prize.',
+      options: language === 'hi'
+        ? ['तुरंत पैसे भेजें', 'संदेश में दिए लिंक पर क्लिक करें', 'भुगतान न करें और आधिकारिक स्रोत से जाँचें']
+        : ['Pay immediately', 'Click its link', 'Do not pay; verify through an official source'],
+      correct: 2,
+    },
+  ].map((q, index) => (
+    <fieldset key={index} className="mt-5 space-y-3">
+      <legend className="font-semibold">
+        {index + 1}. {q.question}
+      </legend>
+
+      {q.options.map((option, optionIndex) => (
+        <label key={optionIndex} className="flex items-start gap-3 rounded-xl border border-slate-200 p-3">
+          <input
+            type="radio"
+            name={`quiz-${index}`}
+            checked={quizAnswers[index] === optionIndex}
+            disabled={quizSubmitted}
+            onChange={() =>
+              setQuizAnswers((previous) => ({
+                ...previous,
+                [index]: optionIndex,
+              }))
+            }
+            className="mt-1"
+          />
+          <span>{option}</span>
+        </label>
+      ))}
+
+      {quizSubmitted && (
+        <p className={`text-sm font-semibold ${
+          quizAnswers[index] === q.correct
+            ? 'text-green-700'
+            : 'text-red-700'
+        }`}>
+          {quizAnswers[index] === q.correct
+            ? (language === 'hi' ? 'सही उत्तर!' : 'Correct!')
+            : (language === 'hi' ? 'सही उत्तर उपलब्ध विकल्पों में से दूसरा है।' : `Correct answer: ${q.options[q.correct]}`)}
+        </p>
+      )}
+    </fieldset>
+  ))}
+
+  {!quizSubmitted ? (
+    <button
+      type="button"
+      disabled={Object.keys(quizAnswers).length !== 3}
+      onClick={() => setQuizSubmitted(true)}
+      className="mt-5 min-h-12 w-full rounded-xl bg-teal-700 px-4 font-semibold text-white disabled:cursor-not-allowed disabled:opacity-50"
+    >
+      {language === 'hi' ? 'उत्तर जाँचें' : 'Check answers'}
+    </button>
+  ) : (
+    <div className="mt-5 rounded-xl bg-teal-50 p-4">
+      <p className="font-bold">
+        {language === 'hi' ? 'आपका स्कोर' : 'Your score'}:{' '}
+        {[0, 1, 2].filter((i) => quizAnswers[i] === [1, 1, 2][i]).length}/3
+      </p>
+      <button
+        type="button"
+        onClick={() => {
+          setQuizAnswers({})
+          setQuizSubmitted(false)
+        }}
+        className="mt-3 min-h-11 rounded-xl border border-teal-700 px-4 font-semibold text-teal-800"
+      >
+        {language === 'hi' ? 'फिर से प्रयास करें' : 'Try again'}
+      </button>
+    </div>
+  )}
+</article>
+
+
+      <button
+        type="button"
+        onClick={() => setActiveTab('Help')}
+        className="min-h-12 w-full rounded-xl bg-teal-700 px-5 font-semibold text-white hover:bg-teal-800 focus-visible:outline-2 focus-visible:outline-teal-700"
+      >
+        {language === 'hi' ? 'सहायता और सुरक्षा सुझाव' : 'More help and safety tips'}
+      </button>
+    </section>
+  )
+}
+
+if (activeTab === 'Help') {
+  return (
+    <section className="space-y-4">
+      <div className="rounded-2xl border border-teal-200 bg-teal-50 p-6">
+        <p className="text-sm font-semibold uppercase tracking-wide text-teal-800">
+          Saral Banking
+        </p>
+        <h2 className="mt-2 text-2xl font-bold text-slate-900">
+          The Standard
+        </h2>
+        <p className="mt-2 leading-6 text-slate-700">
+          Banking should feel familiar, clear and safe. The same actions
+          should work the same way on every screen.
+        </p>
+      </div>
+
+      <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
+        <h3 className="text-lg font-bold">1. Same place for the same thing</h3>
+        <p className="mt-2 text-slate-600">
+          Home, Pay, History, Services and Help always stay in the bottom
+          navigation.
+        </p>
+        <div className="mt-4 flex flex-wrap gap-2">
+          {['Home', 'Pay', 'History', 'Services', 'Help'].map((tab) => (
+            <span key={tab} className="rounded-full bg-teal-50 px-3 py-2 text-sm font-semibold text-teal-800">
+              {tab}
+            </span>
+          ))}
+        </div>
+        <p className="mt-3 text-sm text-slate-500">
+          Live example: these are the five tabs you can see below.
+        </p>
+      </div>
+
+      <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
+        <h3 className="text-lg font-bold">2. Use simple words</h3>
+        <p className="mt-2 text-slate-600">
+          Buttons use words people understand instead of technical banking
+          terms.
+        </p>
+        <div className="mt-4 rounded-xl bg-slate-50 p-4">
+          <p className="text-sm text-slate-500">Instead of technical language</p>
+          <p className="mt-1 text-slate-500 line-through">Fund transfer</p>
+          <p className="mt-3 text-sm text-slate-500">Say this</p>
+          <p className="mt-1 text-lg font-bold text-teal-800">Send money</p>
+        </div>
+        <p className="mt-3 text-sm text-slate-500">
+          Live example: open Pay to see the Send money flow.
+        </p>
+      </div>
+
+      <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
+        <h3 className="text-lg font-bold">3. Review before sending</h3>
+        <p className="mt-2 text-slate-600">
+          A payment should give people time to check the details before
+          confirming with their PIN.
+        </p>
+        <ol className="mt-4 space-y-3">
+          {[
+            ['Step 1', 'Fill it in', 'Choose who to pay and enter the amount.'],
+            ['Step 2', 'Review', 'Check the recipient and amount carefully.'],
+            ['Step 3', 'Confirm', 'Enter the demo PIN to continue.'],
+            ['Receipt', 'See the result', 'Check the payment result.'],
+          ].map(([step, title, description]) => (
+            <li key={step} className="flex gap-3 rounded-xl bg-slate-50 p-3">
+              <span className="flex h-9 w-16 shrink-0 items-center justify-center rounded-lg bg-teal-100 text-sm font-bold text-teal-800">
+                {step}
+              </span>
+              <div>
+                <p className="font-semibold">{title}</p>
+                <p className="mt-1 text-sm text-slate-600">{description}</p>
+              </div>
+            </li>
+          ))}
+        </ol>
+      </div>
+
+      <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
+        <h3 className="text-lg font-bold">4. Keep people in control</h3>
+        <p className="mt-2 text-slate-600">
+          Clear balances, payment history, language choices and safety checks
+          help people make informed decisions.
+        </p>
+        <p className="mt-3 text-sm text-slate-500">
+          Live example: visit Settings to change the language or reset the demo.
+        </p>
+        <button
+          type="button"
+          onClick={() => setActiveTab('Settings')}
+          className="mt-4 min-h-12 rounded-xl border border-teal-700 px-4 font-semibold text-teal-800 hover:bg-teal-50"
+        >
+          Open Settings
+        </button>
+      </div>
+
+      <button
+        type="button"
+        onClick={() => setActiveTab('Home')}
+        className="min-h-12 w-full rounded-xl bg-teal-700 px-5 font-semibold text-white hover:bg-teal-800"
+      >
+        Back to Home
       </button>
     </section>
   )
@@ -1532,10 +2006,37 @@ const page = content[activeTab]
       <header className="border-b border-slate-200 bg-white">
         <div className="mx-auto flex max-w-3xl items-center justify-between gap-3 px-4 py-4 sm:px-6">
           <div className="flex min-w-0 items-center gap-3">
-            <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-teal-700 text-xl font-bold text-white">S</div>
+            
+<div
+  className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl text-xl font-bold text-white"
+  style={{
+    backgroundColor:
+      banks.find((bank) => bank.id === selectedBankId)?.primary || '#0F766E',
+  }}
+>
+  {banks.find((bank) => bank.id === selectedBankId)?.initials || 'S'}
+</div>
+
             <div className="min-w-0"><p className="font-bold">Saral Banking</p><p className="truncate text-sm text-slate-600">Hello, {selectedCustomer.name}</p></div>
           </div>
-          <button type="button" onClick={signOut} className="min-h-11 shrink-0 rounded-lg border border-slate-300 px-3 text-sm font-semibold hover:bg-slate-50">Sign out</button>
+          
+<div className="flex shrink-0 items-center gap-2">
+  <button
+    type="button"
+    onClick={() => setActiveTab('Settings')}
+    className="min-h-11 rounded-lg border border-slate-300 px-3 text-sm font-semibold hover:bg-slate-50"
+  >
+    ⚙ Settings
+  </button>
+  <button
+    type="button"
+    onClick={signOut}
+    className="min-h-11 rounded-lg border border-slate-300 px-3 text-sm font-semibold hover:bg-slate-50"
+  >
+    Sign out
+  </button>
+</div>
+
         </div>
       </header>
 
@@ -1544,11 +2045,11 @@ const page = content[activeTab]
         {activeTab === 'Pay' && renderPayment()}
         {activeTab === 'History' && renderHistory()}
 
-        {['Services', 'Help', 'Settings'].includes(activeTab) && renderPlaceholder()}
+        {['Services', 'Help', 'Settings', 'Learn'].includes(activeTab) && renderPlaceholder()}
       </main>
 
       <nav aria-label="Main navigation" className="fixed inset-x-0 bottom-0 z-10 border-t border-slate-200 bg-white pb-[env(safe-area-inset-bottom)]">
-        <div className="mx-auto grid max-w-3xl grid-cols-3 sm:grid-cols-6">
+        <div className="mx-auto grid max-w-3xl grid-cols-5">
           {navigation.map((item) => {
             const active = activeTab === item.id
             return (
