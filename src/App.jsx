@@ -129,6 +129,25 @@ const [payees, setPayees] = useState(() =>
   const [paymentPin, setPaymentPin] = useState('')
   const [receipt, setReceipt] = useState(null)
   const [guardianPending, setGuardianPending] = useState(false)
+  const [guardianView, setGuardianView] = useState(false)
+  const [youngDailyLimitPaise, setYoungDailyLimitPaise] = useState(
+  () => Number(localStorage.getItem('saral-young-daily-limit')) || 500000
+)
+  const [dailyLimitDraft, setDailyLimitDraft] = useState(
+  () => youngDailyLimitPaise / 100
+)
+  const [savingsGoal, setSavingsGoal] = useState(() => {
+  const saved = localStorage.getItem('saral-young-savings-goal')
+  return saved ? JSON.parse(saved) : {
+    name: 'New bicycle',
+    targetPaise: 5000000,
+    savedPaise: 1250000,
+  }
+})
+
+useEffect(() => {
+  localStorage.setItem('saral-young-savings-goal', JSON.stringify(savingsGoal))
+}, [savingsGoal])
 
 
 useEffect(() => {
@@ -368,23 +387,82 @@ if (recipientIsNew && amountPaise > paymentConfig.newPayeeLimitPaise) {
     })
 
     // Aarav's payments above ₹2,000 require simulated guardian approval.
-    if (selectedCustomer.mode === 'young' && amountPaise > paymentConfig.youngAccountApprovalThresholdPaise) {
-      const pendingReceipt = {
-        id: `DEMO-${Date.now()}`,
-        recipient: finalName,
-        account: finalPayee?.account || `•••• ${newRecipientAccount.slice(-4)}`,
-        amountPaise,
-        date,
-        status: 'Pending guardian approval',
-        note: note.trim(),
-      }
 
-      setReceipt(pendingReceipt)
-      setGuardianPending(true)
-      setPaymentStep('receipt')
-      setPaymentPin('')
-      return
-    }
+if (selectedCustomer.mode === 'young') {
+  const today = new Date().toLocaleDateString('en-IN', {
+  day: '2-digit',
+  month: 'short',
+})
+
+  const spentToday = transactions
+    .filter((transaction) => {
+      return (
+        transaction.customerId === selectedCustomer.id &&
+        transaction.type === 'debit' &&
+        transaction.status === 'Completed' &&
+        transaction.date.startsWith(today)
+      )
+    })
+    .reduce((total, transaction) => total + transaction.amountPaise, 0)
+
+const recentActivity = transactions
+  .filter((transaction) => transaction.customerId === 'aarav')
+  .slice(0, 5)
+
+
+  if (
+    spentToday + amountPaise >
+    youngDailyLimitPaise
+  ) {
+    
+const pendingPayment = {
+  id: `DEMO-${Date.now()}`,
+  customerId: selectedCustomer.id,
+  title: `Payment to ${finalName}`,
+  recipient: finalName,
+  account: finalPayee?.account || `•••• ${newRecipientAccount.slice(-4)}`,
+  amountPaise,
+  date,
+  type: 'debit',
+  status: 'Pending guardian approval',
+  note: note.trim(),
+}
+
+setTransactions((previous) => [pendingPayment, ...previous])
+setReceipt(pendingPayment)
+setGuardianPending(true)
+setPaymentStep('receipt')
+setPaymentPin('')
+return
+
+  }
+}
+
+    
+if (
+  selectedCustomer.mode === 'young' &&
+  amountPaise > paymentConfig.youngAccountApprovalThresholdPaise
+) {
+  const pendingPayment = {
+    id: `DEMO-${Date.now()}`,
+    customerId: selectedCustomer.id,
+    title: `Payment to ${finalName}`,
+    recipient: finalName,
+    account: finalPayee?.account || `•••• ${newRecipientAccount.slice(-4)}`,
+    amountPaise,
+    date,
+    type: 'debit',
+    status: 'Pending guardian approval',
+    note: note.trim(),
+  }
+
+  setTransactions((previous) => [pendingPayment, ...previous])
+  setReceipt(pendingPayment)
+  setGuardianPending(true)
+  setPaymentStep('receipt')
+  setPaymentPin('')
+  return
+ }
 
     const nextBalance = balances[selectedCustomer.id] - amountPaise
     setBalances((previous) => ({
@@ -494,9 +572,16 @@ function resetDemoData() {
               <p className="mt-2 text-3xl font-bold sm:text-4xl">
                 {balanceVisible ? formatMoney(balancePaise) : '₹ ••••••'}
               </p>
-              <p className="mt-3 text-sm text-teal-100">
-               {language === 'hi' ? 'डेमो खाता' : 'Demo account'} · •••• 4821
-              </p>
+              
+<p className="mt-3 text-sm text-teal-100">
+  {language === 'hi'
+    ? 'उपलब्ध शेष राशि वह पैसा है जिसे आप अभी इस्तेमाल कर सकते हैं।'
+    : 'Available balance is the money you can use right now.'}
+</p>
+<p className="mt-2 text-sm text-teal-100">
+  {language === 'hi' ? 'डेमो खाता' : 'Demo account'} · •••• 4821
+</p>
+
             </div>
             <button
               type="button"
@@ -508,6 +593,128 @@ function resetDemoData() {
             </button>
           </div>
         </section>
+
+{selectedCustomer.mode === 'young' && (
+  <section className="mt-4 rounded-2xl border border-indigo-200 bg-indigo-50 p-4">
+    <h2 className="text-lg font-bold text-indigo-950">
+      {language === 'hi' ? 'अभिभावक दृश्य' : 'Guardian View'}
+    </h2>
+    <p className="mt-1 text-sm text-indigo-800">
+      {language === 'hi'
+        ? 'मीना के लिए लंबित भुगतानों और खाते की गतिविधि की समीक्षा करें।'
+        : 'Meena can review pending payments and account activity here.'}
+    </p>
+    <button
+      type="button"
+      onClick={() => {
+  setGuardianView(true)
+  setActiveTab('Guardian')
+}}
+      className="mt-3 min-h-12 w-full rounded-xl bg-indigo-700 px-4 py-3 font-semibold text-white focus-visible:outline-2 focus-visible:outline-offset-2"
+    >
+      {activeTab === 'Guardian'
+        ? (language === 'hi' ? 'अभिभावक दृश्य बंद करें' : 'Exit Guardian View')
+        : (language === 'hi' ? 'अभिभावक दृश्य खोलें' : 'Open Guardian View')}
+    </button>
+  </section>
+)}
+
+{selectedCustomer.mode === 'young' && (
+  <section className="mt-6 rounded-2xl border border-amber-200 bg-amber-50 p-5">
+    <h2 className="text-xl font-bold text-amber-950">
+      {language === 'hi' ? 'मेरा बचत लक्ष्य' : 'My savings goal'}
+    </h2>
+
+    
+<input
+  type="text"
+  aria-label="Savings goal name"
+  value={savingsGoal.name}
+  onChange={(event) => {
+    setSavingsGoal((previous) => ({
+      ...previous,
+      name: event.target.value,
+    }))
+  }}
+  className="mt-2 min-h-11 w-full rounded-xl border border-amber-300 bg-white px-3 font-medium text-slate-900"
+/>
+
+
+    <div className="mt-4 flex items-end justify-between gap-3">
+      <div>
+        <p className="text-sm text-slate-600">
+          {language === 'hi' ? 'अब तक बचाए' : 'Saved so far'}
+        </p>
+        <p className="text-xl font-bold">
+          {formatMoney(savingsGoal.savedPaise)}
+        </p>
+      </div>
+      <div className="text-right">
+        <p className="text-sm text-slate-600">
+          {language === 'hi' ? 'लक्ष्य' : 'Target'}
+        </p>
+        
+<input
+  type="number"
+  aria-label="Savings goal target in rupees"
+  min="1"
+  value={savingsGoal.targetPaise > 0 ? savingsGoal.targetPaise / 100 : ''}
+  onChange={(event) => {
+  const value = event.target.value
+
+  if (value === '') {
+    setSavingsGoal((previous) => ({
+      ...previous,
+      targetPaise: 0,
+    }))
+    return
+  }
+
+  const rupees = Number(value)
+
+  if (Number.isFinite(rupees) && rupees > 0) {
+    setSavingsGoal((previous) => ({
+      ...previous,
+      targetPaise: Math.round(rupees * 100),
+    }))
+  }
+}}
+  className="mt-1 min-h-11 w-full rounded-xl border border-amber-300 bg-white px-3 font-semibold text-slate-900"
+/>
+
+      </div>
+    </div>
+
+    <div
+      className="mt-3 h-3 overflow-hidden rounded-full bg-amber-200"
+      role="progressbar"
+      aria-label="Savings goal progress"
+      aria-valuemin={0}
+      aria-valuemax={100}
+      aria-valuenow={Math.min(
+        100,
+        Math.round((savingsGoal.savedPaise / savingsGoal.targetPaise) * 100)
+      )}
+    >
+      <div
+        className="h-full rounded-full bg-amber-600"
+        style={{
+          width: `${Math.min(
+            100,
+            (savingsGoal.savedPaise / savingsGoal.targetPaise) * 100
+          )}%`,
+        }}
+      />
+    </div>
+
+    <p className="mt-2 text-sm font-medium text-amber-950">
+      {Math.min(
+        100,
+        Math.round((savingsGoal.savedPaise / savingsGoal.targetPaise) * 100)
+      )}% {language === 'hi' ? 'पूरा हुआ' : 'completed'}
+    </p>
+  </section>
+)}
 
         <section className="mt-6">
           <h2 className="text-xl font-bold">
@@ -573,7 +780,7 @@ style={
             </button>
           </div>
           <div className="mt-3 divide-y divide-slate-100 rounded-2xl border border-slate-200 bg-white px-4">
-            {myTransactions.slice(0, 4).map((transaction) => (
+            {myTransactions.slice(0, 5).map((transaction) => (
               <div key={transaction.id} className="flex items-center gap-3 py-4">
                 <span aria-hidden="true" className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-slate-100 text-lg">
                   {transaction.type === 'credit' ? '↓' : '↑'}
@@ -1401,7 +1608,225 @@ const content = {
   },
 }
 
-    if (activeTab === 'Settings') {
+if (activeTab === 'Guardian') {
+  const pendingPayments = transactions.filter(
+    (transaction) =>
+      transaction.customerId === 'aarav' &&
+      transaction.status === 'Pending guardian approval'
+  )
+
+  const spentToday = transactions
+    .filter((transaction) => {
+      const today = new Date().toLocaleDateString('en-IN', {
+        day: '2-digit',
+        month: 'short',
+      })
+
+      return (
+        transaction.customerId === 'aarav' &&
+        transaction.type === 'debit' &&
+        transaction.status === 'Completed' &&
+        transaction.date.startsWith(today)
+      )
+    })
+    .reduce((total, transaction) => total + transaction.amountPaise, 0)
+
+const recentActivity = transactions
+  .filter((transaction) => transaction.customerId === 'aarav')
+  .slice(0, 5)
+
+
+  return (
+    <section className="space-y-4">
+      <button
+        type="button"
+        onClick={() => {
+          setGuardianView(false)
+          setActiveTab('Home')
+        }}
+        className="min-h-11 rounded-xl border border-slate-300 px-4 font-semibold"
+      >
+        ← {language === 'hi' ? 'होम पर वापस जाएँ' : 'Back to Home'}
+      </button>
+
+      <div>
+        <h2 className="text-2xl font-bold">
+          {language === 'hi' ? 'मीना का अभिभावक डैशबोर्ड' : "Meena's Guardian Dashboard"}
+        </h2>
+        <p className="mt-1 text-slate-600">
+          {language === 'hi'
+            ? 'आरव के डेमो खाते की गतिविधि देखें।'
+            : "Review Aarav's demo account activity."}
+        </p>
+      </div>
+
+      <div className="rounded-2xl border border-slate-200 bg-white p-5">
+        <p className="text-sm text-slate-600">
+          {language === 'hi' ? 'आज का पूरा भुगतान' : "Today's completed spending"}
+        </p>
+        <p className="mt-2 text-3xl font-bold">
+          {formatMoney(spentToday)}
+        </p>
+        
+<p className="mt-1 text-sm text-slate-600">
+  {language === 'hi' ? 'दैनिक सीमा' : 'Daily spending limit'}:
+  {' '}{formatMoney(youngDailyLimitPaise)}
+</p>
+
+<div className="mt-4">
+  <label htmlFor="young-daily-limit" className="block text-sm font-semibold text-slate-700">
+    {language === 'hi' ? 'नई दैनिक सीमा (₹)' : 'Set a new daily limit (₹)'}
+  </label>
+
+  <input
+    id="young-daily-limit"
+    type="number"
+    min="1"
+    max="100000"
+    step="1"
+    value={dailyLimitDraft}
+onChange={(event) => {
+  setDailyLimitDraft(event.target.value)
+}}
+    className="mt-2 min-h-12 w-full rounded-xl border border-slate-300 px-3"
+  />
+
+  <button
+    type="button"
+    
+onClick={() => {
+  const rupees = Number(dailyLimitDraft)
+
+  if (
+    !Number.isFinite(rupees) ||
+    rupees < 1 ||
+    rupees > 100000
+  ) {
+    window.alert('Enter a daily limit between ₹1 and ₹1,00,000.')
+    return
+  }
+
+  const limitPaise = Math.round(rupees * 100)
+
+  setYoungDailyLimitPaise(limitPaise)
+  localStorage.setItem('saral-young-daily-limit', String(limitPaise))
+  window.alert('Daily spending limit saved.')
+}}
+
+    className="mt-3 min-h-12 w-full rounded-xl bg-indigo-700 px-4 py-3 font-semibold text-white"
+  >
+    {language === 'hi' ? 'सीमा सेव करें' : 'Save daily limit'}
+  </button>
+</div>
+
+      </div>
+
+      <div className="rounded-2xl border border-slate-200 bg-white p-5">
+        <h3 className="text-lg font-bold">
+          {language === 'hi' ? 'मंज़ूरी के लिए लंबित भुगतान' : 'Payments awaiting approval'}
+        </h3>
+
+        {pendingPayments.length === 0 ? (
+          <p className="mt-3 text-slate-600">
+            {language === 'hi' ? 'अभी कोई भुगतान लंबित नहीं है।' : 'There are no pending payments right now.'}
+          </p>
+        ) : (
+          <div className="mt-3 space-y-3">
+            {pendingPayments.map((payment) => (
+              <div key={payment.id} className="rounded-xl border border-slate-200 p-3">
+                <p className="font-semibold">{payment.title}</p>
+                <p className="mt-1 text-lg font-bold">
+                  {formatMoney(payment.amountPaise)}
+                </p>
+                <p className="text-sm text-slate-600">{payment.date}</p>
+                <p className="mt-2 text-sm text-amber-700">
+                  {language === 'hi' ? 'मंज़ूरी बाकी है' : 'Awaiting guardian approval'}
+                </p>
+
+<div className="mt-3 grid grid-cols-2 gap-2">
+  <button
+    type="button"
+    onClick={() => {
+      setTransactions((previous) =>
+        previous.map((transaction) =>
+          transaction.id === payment.id
+            ? { ...transaction, status: 'Completed' }
+            : transaction
+        )
+      )
+      setBalances((previous) => ({
+        ...previous,
+        aarav: previous.aarav - payment.amountPaise,
+      }))
+    }}
+    className="min-h-12 rounded-xl bg-teal-800 px-3 py-2 font-semibold text-white"
+  >
+    {language === 'hi' ? 'मंज़ूर करें' : 'Approve'}
+  </button>
+
+  <button
+    type="button"
+    onClick={() => {
+      setTransactions((previous) =>
+        previous.map((transaction) =>
+          transaction.id === payment.id
+            ? { ...transaction, status: 'Rejected' }
+            : transaction
+        )
+      )
+    }}
+    className="min-h-12 rounded-xl border border-red-300 px-3 py-2 font-semibold text-red-700"
+  >
+    {language === 'hi' ? 'अस्वीकार करें' : 'Reject'}
+  </button>
+</div>
+
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
+
+      <div className="rounded-2xl border border-slate-200 bg-white p-5">
+        <h3 className="text-lg font-bold">
+          {language === 'hi' ? 'आरव की हाल की गतिविधि' : "Aarav's Recent Activity"}
+        </h3>
+
+        {recentActivity.length === 0 ? (
+          <p className="mt-3 text-slate-600">
+            {language === 'hi' ? 'अभी कोई गतिविधि नहीं है।' : 'No account activity yet.'}
+          </p>
+        ) : (
+          <div className="mt-3 divide-y divide-slate-200">
+            {recentActivity.map((transaction) => (
+              <div key={transaction.id} className="py-3">
+                <div className="flex items-start justify-between gap-3">
+                  <div>
+                    <p className="font-semibold">
+                      {transaction.title || transaction.recipient || 'Payment'}
+                    </p>
+                    <p className="mt-1 text-sm text-slate-500">
+                      {transaction.date}
+                    </p>
+                    <p className="mt-1 text-sm text-slate-600">
+                      {transaction.status}
+                    </p>
+                  </div>
+                  <p className="shrink-0 font-bold">
+                    {formatMoney(transaction.amountPaise)}
+                  </p>
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
+
+    </section>
+  )
+}
+    
+if (activeTab === 'Settings') {
   return (
     <section className="space-y-4">
       <div>
@@ -1628,9 +2053,11 @@ if (activeTab === 'Services') {
           onClick={openPay}
           className="min-h-24 rounded-2xl border p-5 text-left text-white shadow-sm focus-visible:outline-2"
           style={{
-          backgroundColor: 'purple',
-          borderColor: 'purple',
-          }}
+  backgroundColor:
+    banks.find((bank) => bank.id === selectedBankId)?.primary || '#0F766E',
+  borderColor:
+    banks.find((bank) => bank.id === selectedBankId)?.primary || '#0F766E',
+}}
           >
         <span className="block text-lg font-bold">
          {language === 'hi' ? 'पैसे भेजें' : 'Send money'}
@@ -2045,7 +2472,7 @@ const page = content[activeTab]
         {activeTab === 'Pay' && renderPayment()}
         {activeTab === 'History' && renderHistory()}
 
-        {['Services', 'Help', 'Settings', 'Learn'].includes(activeTab) && renderPlaceholder()}
+        {['Services', 'Help', 'Settings', 'Learn', 'Guardian'].includes(activeTab) && renderPlaceholder()}
       </main>
 
       <nav aria-label="Main navigation" className="fixed inset-x-0 bottom-0 z-10 border-t border-slate-200 bg-white pb-[env(safe-area-inset-bottom)]">
