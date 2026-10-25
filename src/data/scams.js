@@ -50,4 +50,27 @@ export const scamPatterns = [
     advice:
       'Verify the offer through the organization’s official website before paying or sharing details.',
   },
+
+  {
+    id: 'fake-customer-care',
+    title: 'Fake customer care number',
+    keywords: [
+      'customer care number',
+      'helpline number',
+      'call this number',
+      'google support number',
+      'bank support number',
+    ],
+    risk: 'high',
+    explanation:
+      'Fraudsters may post fake customer-care numbers and trick people into sharing account details or installing remote-access apps.',
+    advice:
+      'Use the contact number listed in your bank’s official app, card, or website. Never trust an unverified number from a search result or social post.',
+    titleHi: 'नकली कस्टमर केयर नंबर',
+    explanationHi:
+      'धोखेबाज़ नकली कस्टमर केयर नंबर देकर लोगों से खाते की जानकारी साझा करवाने या रिमोट-एक्सेस ऐप इंस्टॉल करवाने की कोशिश कर सकते हैं।',
+    adviceHi:
+      'अपने बैंक के आधिकारिक ऐप, कार्ड या वेबसाइट पर दिया गया नंबर ही इस्तेमाल करें। खोज परिणामों या सोशल मीडिया पर मिले अप्रमाणित नंबर पर भरोसा न करें।',
+  },
+
 ]

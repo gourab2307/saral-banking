@@ -95,7 +95,20 @@ function App() {
 
   const [historySearch, setHistorySearch] = useState('')
   const [historyType, setHistoryType] = useState('all')
+
+const [historyStartDate, setHistoryStartDate] = useState('')
+const [historyEndDate, setHistoryEndDate] = useState('')
+
   const [balanceVisible, setBalanceVisible] = useState(true)
+
+const [textSize, setTextSize] = useState(
+  () => localStorage.getItem('saral-text-size') || 'normal'
+)
+
+const [highContrast, setHighContrast] = useState(
+  () => localStorage.getItem('saral-high-contrast') === 'true'
+)
+
   const [quizAnswers, setQuizAnswers] = useState({})
   const [quizSubmitted, setQuizSubmitted] = useState(false)
   
@@ -124,6 +137,17 @@ const [serviceRequests, setServiceRequests] = useState(() =>
   loadDemoData('saral-service-requests-v1', [])
 )
 
+const [nominee, setNominee] = useState(() =>
+  loadDemoData('saral-demo-nominee-v1', null)
+)
+
+const [nomineeName, setNomineeName] = useState('')
+const [nomineeRelationship, setNomineeRelationship] = useState('Spouse')
+const [nomineeAge, setNomineeAge] = useState('')
+const [nomineeContact, setNomineeContact] = useState('')
+const [nomineeEditing, setNomineeEditing] = useState(false)
+
+
 const [cardBlocked, setCardBlocked] = useState(() =>
   localStorage.getItem('saral-demo-card-blocked') === 'true'
 )
@@ -140,6 +164,7 @@ const [upiLimit, setUpiLimit] = useState(() =>
   const [amount, setAmount] = useState('')
   const [note, setNote] = useState('')
   const [paymentError, setPaymentError] = useState('')
+  const [largePaymentConfirmed, setLargePaymentConfirmed] = useState(false)
   const [safetyAcknowledged, setSafetyAcknowledged] = useState(false)
   const [urgentRequest, setUrgentRequest] = useState('')
   const [paymentPin, setPaymentPin] = useState('')
@@ -190,6 +215,47 @@ useEffect(() => {
   }
 }, [payees])
 
+useEffect(() => {
+  if (!signedIn) return
+
+  let timeoutId
+
+  const resetInactivityTimer = () => {
+    clearTimeout(timeoutId)
+
+    timeoutId = setTimeout(() => {
+      signOut()
+      alert(
+        language === 'hi'
+          ? 'दो मिनट तक कोई गतिविधि नहीं हुई। सुरक्षा के लिए आपको साइन आउट कर दिया गया है।'
+          : 'You were signed out for your security after 2 minutes of inactivity.'
+      )
+    }, 2 * 60 * 1000)
+  }
+
+  const activityEvents = [
+    'pointerdown',
+    'keydown',
+    'touchstart',
+    'scroll',
+  ]
+
+  activityEvents.forEach((eventName) => {
+    window.addEventListener(eventName, resetInactivityTimer)
+  })
+
+  resetInactivityTimer()
+
+  return () => {
+    clearTimeout(timeoutId)
+
+    activityEvents.forEach((eventName) => {
+      window.removeEventListener(eventName, resetInactivityTimer)
+    })
+  }
+}, [signedIn, language])
+
+
 
   const simpleMode = selectedCustomer.mode === 'simple'
   const balancePaise = balances[selectedCustomer.id]
@@ -216,6 +282,7 @@ useEffect(() => {
     setAmount('')
     setNote('')
     setPaymentError('')
+    setLargePaymentConfirmed(false)
     setSafetyAcknowledged(false)
     setUrgentRequest('')
     setPaymentPin('')
@@ -328,11 +395,19 @@ useEffect(() => {
     }
 
     if (recipientIsNew && amountPaise > paymentConfig.newPayeeLimitPaise) {
-      setPaymentError('The demo limit for a new recipient is ₹10,000.')
-      return
-    }
+  setPaymentError('The demo limit for a new recipient is ₹10,000.')
+  return
+}
 
-    setPaymentStep('pin')
+if (simpleMode && amountPaise > 500000 && !largePaymentConfirmed) {
+  setLargePaymentConfirmed(true)
+  setPaymentError(
+    'Please review this payment over ₹5,000 carefully. Press Continue again to confirm.'
+  )
+  return
+}
+
+setPaymentStep('pin')
   }
 
   function completePayment(event) {
@@ -369,6 +444,29 @@ useEffect(() => {
       )
       return
     }
+
+    const today = new Date().toLocaleDateString('en-CA')
+    const spentTodayPaise = transactions
+      .filter((transaction) => {
+        if (transaction.customerId !== selectedCustomer.id) return false
+        if (transaction.type !== 'debit') return false
+        if (transaction.status && transaction.status !== 'Completed') return false
+
+        const transactionDate = new Date(transaction.date)
+        return !Number.isNaN(transactionDate.getTime()) &&
+          transactionDate.toLocaleDateString('en-CA') === today
+      })
+      .reduce((total, transaction) => total + transaction.amountPaise, 0)
+
+    if (spentTodayPaise + amountPaise > upiLimit * 100) {
+      setPaymentError(
+        language === 'hi'
+          ? 'आपकी दैनिक UPI सीमा पार हो जाएगी। कम राशि दर्ज करें या सीमा की जाँच करें।'
+          : 'This payment would exceed your daily UPI limit. Enter a smaller amount or check your limit.'
+      )
+      return
+    }
+
 
 if (recipientIsNew && amountPaise > paymentConfig.newPayeeLimitPaise) {
   setPaymentError(t.newRecipientDemoLimit)
@@ -1273,6 +1371,7 @@ scamResult.summary === 'Enter a message to check for warning signs.'
           'remote-access': t.remoteAccessTitle,
           'payment-collect': t.suspiciousPaymentTitle,
           'prize-claim': t.unexpectedPrizeTitle,
+          'fake-customer-care': 'नकली कस्टमर केयर नंबर',
         }[pattern.id] || pattern.title)
       : pattern.title}</p>
               <p className="mt-1 leading-5 text-slate-700">
@@ -1283,6 +1382,7 @@ scamResult.summary === 'Enter a message to check for warning signs.'
           'remote-access': t.remoteAccessExplanation,
           'payment-collect': t.suspiciousPaymentExplanation,
           'prize-claim': t.unexpectedPrizeExplanation,
+          'fake-customer-care': 'धोखेबाज़ नकली कस्टमर केयर नंबर देकर खाते की जानकारी चुराने या रिमोट-एक्सेस ऐप इंस्टॉल करवाने की कोशिश कर सकते हैं।',
         }[pattern.id] || pattern.explanation)
       : pattern.explanation}
               </p>
@@ -1300,6 +1400,7 @@ scamResult.summary === 'Enter a message to check for warning signs.'
         'remote-access': t.remoteAccessAdvice,
         'payment-collect': t.suspiciousPaymentAdvice,
         'prize-claim': t.unexpectedPrizeAdvice,
+        'fake-customer-care': 'अपने बैंक के आधिकारिक ऐप, कार्ड या वेबसाइट पर दिया गया नंबर ही इस्तेमाल करें।',
       }[scamResult.matches[0]?.id] || scamResult.advice)
     : scamResult.advice}
 </p>
@@ -1495,10 +1596,32 @@ function renderHistory() {
       historySearch.trim().toLowerCase()
     )
 
-    const matchesType =
-      historyType === 'all' || transaction.type === historyType
+    
+const matchesType =
+  historyType === 'all' || transaction.type === historyType
 
-    return matchesSearch && matchesType
+const transactionDate = new Date(transaction.date)
+
+const matchesStartDate =
+  !historyStartDate ||
+  (!Number.isNaN(transactionDate.getTime()) &&
+    transactionDate >= new Date(`${historyStartDate}T00:00:00`))
+
+const endDateExclusive = historyEndDate
+  ? new Date(`${historyEndDate}T00:00:00`)
+  : null
+
+if (endDateExclusive) {
+  endDateExclusive.setDate(endDateExclusive.getDate() + 1)
+}
+
+const matchesEndDate =
+  !historyEndDate ||
+  (!Number.isNaN(transactionDate.getTime()) &&
+    transactionDate < endDateExclusive)
+
+return matchesSearch && matchesType && matchesStartDate && matchesEndDate
+
   })
 
   const totalMoneyIn = myTransactions
@@ -1552,6 +1675,37 @@ function renderHistory() {
       <section className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm sm:p-5">
         <h3 className="text-lg font-bold">{t.findTransaction}</h3>
 
+<div className="mt-4 grid grid-cols-1 gap-3 sm:grid-cols-2">
+  <div>
+    <label htmlFor="history-start-date" className="block font-semibold">
+      {language === 'hi' ? 'शुरुआत की तारीख' : 'From date'}
+    </label>
+    <input
+      id="history-start-date"
+      type="date"
+      value={historyStartDate}
+      max={historyEndDate || undefined}
+      onChange={(event) => setHistoryStartDate(event.target.value)}
+      className="mt-2 min-h-12 w-full rounded-xl border border-slate-300 bg-white px-3"
+    />
+  </div>
+
+  <div>
+    <label htmlFor="history-end-date" className="block font-semibold">
+      {language === 'hi' ? 'अंतिम तारीख' : 'To date'}
+    </label>
+    <input
+      id="history-end-date"
+      type="date"
+      value={historyEndDate}
+      min={historyStartDate || undefined}
+      onChange={(event) => setHistoryEndDate(event.target.value)}
+      className="mt-2 min-h-12 w-full rounded-xl border border-slate-300 bg-white px-3"
+    />
+  </div>
+</div>
+
+
         <label
           htmlFor="history-search"
           className="mt-4 block font-semibold"
@@ -1591,10 +1745,14 @@ function renderHistory() {
           </p>
           <button
             type="button"
-            onClick={() => {
-              setHistorySearch('')
-              setHistoryType('all')
-            }}
+            
+onClick={() => {
+  setHistorySearch('')
+  setHistoryType('all')
+  setHistoryStartDate('')
+  setHistoryEndDate('')
+}}
+
             className="min-h-11 rounded-lg px-3 font-semibold text-teal-800 underline underline-offset-4 focus-visible:outline-2 focus-visible:outline-teal-700"
           >
             {t.clearFilters}
@@ -1858,7 +2016,23 @@ window.alert(
   )
 }
 
-  function renderPlaceholder() {
+
+function readAloud(text) {
+  if (!('speechSynthesis' in window)) {
+    alert('Read aloud is not supported in this browser.')
+    return
+  }
+
+  window.speechSynthesis.cancel()
+
+  const message = new SpeechSynthesisUtterance(text)
+  message.lang = language === 'hi' ? 'hi-IN' : 'en-IN'
+  message.rate = 0.9
+
+  window.speechSynthesis.speak(message)
+}
+  
+function renderPlaceholder() {
     
 const content = {
   History: {
@@ -2235,6 +2409,71 @@ if (activeTab === 'Settings') {
         </button>
       </div>
 
+<div className="rounded-2xl border border-slate-200 bg-white p-4 space-y-4">
+  <h3 className="font-bold">
+    {language === 'hi' ? 'सुलभता' : 'Accessibility'}
+  </h3>
+
+  <div>
+    <p className="mb-2 text-sm font-medium">
+      {language === 'hi' ? 'टेक्स्ट का आकार' : 'Text size'}
+    </p>
+    <div className="flex flex-wrap gap-2">
+      {[
+        { value: 'normal', label: language === 'hi' ? 'सामान्य' : 'Normal' },
+        { value: 'large', label: language === 'hi' ? 'बड़ा' : 'Large' },
+        { value: 'extra-large', label: language === 'hi' ? 'बहुत बड़ा' : 'Extra large' },
+      ].map((option) => (
+        <button
+          key={option.value}
+          onClick={() => {
+            setTextSize(option.value)
+            localStorage.setItem('saral-text-size', option.value)
+          }}
+          className={`rounded-xl border px-3 py-2 ${
+            textSize === option.value
+              ? 'border-teal-700 bg-teal-50 font-semibold'
+              : 'border-slate-300 bg-white'
+          }`}
+        >
+          {option.label}
+        </button>
+      ))}
+    </div>
+  </div>
+
+  <label className="flex items-center justify-between gap-3">
+    <span>{language === 'hi' ? 'हाई कॉन्ट्रास्ट' : 'High contrast'}</span>
+    <input
+      type="checkbox"
+      checked={highContrast}
+      onChange={(event) => {
+        setHighContrast(event.target.checked)
+        localStorage.setItem(
+          'saral-high-contrast',
+          String(event.target.checked)
+        )
+      }}
+      className="h-5 w-5"
+    />
+  </label>
+
+  <button
+    onClick={() =>
+      readAloud(
+        language === 'hi'
+          ? 'सरल बैंकिंग में आपका स्वागत है। आप टेक्स्ट का आकार बदल सकते हैं और हाई कॉन्ट्रास्ट चालू कर सकते हैं।'
+          : 'Welcome to Saral Banking. You can change the text size and turn on high contrast in accessibility settings.'
+      )
+    }
+    className="w-full rounded-xl bg-teal-700 px-4 py-3 font-semibold text-white"
+  >
+    {language === 'hi' ? 'निर्देश सुनें' : 'Read instructions aloud'}
+  </button>
+
+</div>
+
+
       <div className="rounded-2xl border border-slate-200 bg-white p-5">
         <h3 className="font-bold">
           {language === 'hi' ? 'डेमो डेटा रीसेट करें' : 'Reset demo data'}
@@ -2394,16 +2633,151 @@ if (activeTab === 'Services') {
             : 'These are demo requests, not real bank submissions.'}
         </p>
 
+        
+<div className="mt-5 rounded-xl border border-slate-200 p-4">
+  <h4 className="text-lg font-bold">
+    {language === 'hi' ? 'नॉमिनी विवरण' : 'Nominee details'}
+  </h4>
+
+  {nominee && !nomineeEditing ? (
+    <div className="mt-3 space-y-2">
+      <p><strong>{language === 'hi' ? 'नाम:' : 'Name:'}</strong> {nominee.name}</p>
+      <p><strong>{language === 'hi' ? 'रिश्ता:' : 'Relationship:'}</strong> {nominee.relationship}</p>
+      <p><strong>{language === 'hi' ? 'उम्र:' : 'Age:'}</strong> {nominee.age}</p>
+      <p><strong>{language === 'hi' ? 'संपर्क:' : 'Contact:'}</strong> {nominee.contact}</p>
+      <button
+        type="button"
+        onClick={() => {
+          setNomineeName(nominee.name)
+          setNomineeRelationship(nominee.relationship)
+          setNomineeAge(String(nominee.age))
+          setNomineeContact(nominee.contact)
+          setNomineeEditing(true)
+        }}
+        className="mt-2 min-h-11 rounded-xl border border-teal-700 px-4 font-semibold text-teal-800"
+      >
+        {language === 'hi' ? 'नॉमिनी बदलें' : 'Edit nominee'}
+      </button>
+    </div>
+  ) : (
+    <form
+      className="mt-3 space-y-3"
+      onSubmit={(event) => {
+        event.preventDefault()
+        const savedNominee = {
+          name: nomineeName.trim(),
+          relationship: nomineeRelationship,
+          age: Number(nomineeAge),
+          contact: nomineeContact.trim(),
+        }
+        setNominee(savedNominee)
+        localStorage.setItem('saral-demo-nominee-v1', JSON.stringify(savedNominee))
+        setNomineeEditing(false)
+        window.alert(
+          language === 'hi'
+            ? 'डेमो नॉमिनी विवरण सेव हो गया।'
+            : 'Demo nominee details saved.'
+        )
+      }}
+    >
+      <label className="block font-medium">
+        {language === 'hi' ? 'पूरा नाम' : 'Full name'}
+        <input
+          required
+          maxLength={80}
+          value={nomineeName}
+          onChange={(event) => setNomineeName(event.target.value)}
+          className="mt-1 min-h-11 w-full rounded-lg border border-slate-300 px-3"
+        />
+      </label>
+
+      <label className="block font-medium">
+        {language === 'hi' ? 'रिश्ता' : 'Relationship'}
+        <select
+          value={nomineeRelationship}
+          onChange={(event) => setNomineeRelationship(event.target.value)}
+          className="mt-1 min-h-11 w-full rounded-lg border border-slate-300 px-3"
+        >
+          <option value="Spouse">{language === 'hi' ? 'पति/पत्नी' : 'Spouse'}</option>
+          <option value="Parent">{language === 'hi' ? 'माता/पिता' : 'Parent'}</option>
+          <option value="Child">{language === 'hi' ? 'बेटा/बेटी' : 'Child'}</option>
+          <option value="Sibling">{language === 'hi' ? 'भाई/बहन' : 'Sibling'}</option>
+          <option value="Other">{language === 'hi' ? 'अन्य' : 'Other'}</option>
+        </select>
+      </label>
+
+      <label className="block font-medium">
+        {language === 'hi' ? 'उम्र' : 'Age'}
+        <input
+          required
+          type="number"
+          min="1"
+          max="120"
+          value={nomineeAge}
+          onChange={(event) => setNomineeAge(event.target.value)}
+          className="mt-1 min-h-11 w-full rounded-lg border border-slate-300 px-3"
+        />
+      </label>
+
+      <label className="block font-medium">
+        {language === 'hi' ? 'मोबाइल या ईमेल' : 'Mobile or email'}
+        <input
+          required
+          maxLength={120}
+          value={nomineeContact}
+          onChange={(event) => setNomineeContact(event.target.value)}
+          className="mt-1 min-h-11 w-full rounded-lg border border-slate-300 px-3"
+        />
+      </label>
+
+      <button
+        type="submit"
+        className="min-h-12 w-full rounded-xl bg-teal-800 px-4 font-semibold text-white"
+      >
+        {language === 'hi' ? 'नॉमिनी सेव करें' : 'Save nominee'}
+      </button>
+
+      {nominee && (
+        <button
+          type="button"
+          onClick={() => setNomineeEditing(false)}
+          className="min-h-11 w-full rounded-xl border border-slate-300 px-4 font-semibold"
+        >
+          {language === 'hi' ? 'रद्द करें' : 'Cancel'}
+        </button>
+      )}
+    </form>
+  )}
+
+  <p className="mt-3 text-xs text-slate-500">
+    {language === 'hi'
+      ? 'यह केवल डेमो है। विवरण किसी वास्तविक बैंक में जमा नहीं होते।'
+      : 'Demo only. These details are not submitted to a real bank.'}
+  </p>
+</div>
+
         <div className="mt-4 grid gap-3 sm:grid-cols-2">
           <button
             type="button"
             onClick={() => {
-              const contact = window.prompt('Enter a demo mobile number or email:')
+              const contact = window.prompt(
+  language === 'hi'
+    ? 'डेमो मोबाइल नंबर या ईमेल दर्ज करें:'
+    : 'Enter a demo mobile number or email:'
+)
               if (!contact?.trim()) return
 
-              const otp = window.prompt('Demo OTP: enter 123456 to verify')
+              const otp = window.prompt(
+  language === 'hi'
+    ? 'डेमो OTP: सत्यापन के लिए 123456 दर्ज करें'
+    : 'Demo OTP: enter 123456 to verify'
+)
               if (otp !== '123456') {
-                window.alert('Demo OTP verification failed.')
+                window.alert(
+  language === 'hi'
+    ? 'डेमो OTP सत्यापन विफल रहा।'
+    : 'Demo OTP verification failed.'
+)
                 return
               }
 
@@ -2419,11 +2793,15 @@ if (activeTab === 'Services') {
                 localStorage.setItem('saral-service-requests-v1', JSON.stringify(updated))
                 return updated
               })
-              window.alert('Demo contact update verified.')
+              window.alert(
+  language === 'hi'
+    ? 'डेमो संपर्क विवरण सत्यापित हो गया।'
+    : 'Demo contact update verified.'
+)
             }}
             className="min-h-12 rounded-xl border border-slate-300 p-3 text-left font-semibold"
           >
-            Update contact (demo OTP)
+            {language === 'hi' ? 'संपर्क विवरण बदलें (डेमो OTP)' : 'Update contact (demo OTP)'}
           </button>
 
           <button
@@ -2441,11 +2819,15 @@ if (activeTab === 'Services') {
                 localStorage.setItem('saral-service-requests-v1', JSON.stringify(updated))
                 return updated
               })
-              window.alert('Demo cheque book request submitted.')
+              window.alert(
+  language === 'hi'
+    ? 'डेमो चेकबुक अनुरोध जमा हो गया।'
+    : 'Demo cheque book request submitted.'
+)
             }}
             className="min-h-12 rounded-xl border border-slate-300 p-3 text-left font-semibold"
           >
-            Request cheque book
+            {language === 'hi' ? 'चेकबुक मँगाएँ' : 'Request cheque book'}
           </button>
 
           <button
@@ -2470,12 +2852,14 @@ if (activeTab === 'Services') {
             }}
             className="min-h-12 rounded-xl border border-slate-300 p-3 text-left font-semibold"
           >
-            {cardBlocked ? 'Unblock demo card' : 'Block demo card'}
+            {cardBlocked
+  ? language === 'hi' ? 'डेमो कार्ड अनब्लॉक करें' : 'Unblock demo card'
+  : language === 'hi' ? 'डेमो कार्ड ब्लॉक करें' : 'Block demo card'}
           </button>
 
           <div className="rounded-xl border border-slate-200 p-3">
             <label htmlFor="demo-upi-limit" className="block font-semibold">
-              Daily UPI limit (₹)
+              {language === 'hi' ? 'दैनिक UPI सीमा (₹)' : 'Daily UPI limit (₹)'}
             </label>
             <input
               id="demo-upi-limit"
@@ -2490,7 +2874,11 @@ if (activeTab === 'Services') {
               type="button"
               onClick={() => {
                 if (!Number.isFinite(upiLimit) || upiLimit < 1 || upiLimit > 100000) {
-                  window.alert('Enter a limit between ₹1 and ₹1,00,000.')
+                  window.alert(
+  language === 'hi'
+    ? '₹1 से ₹1,00,000 के बीच सीमा दर्ज करें।'
+    : 'Enter a limit between ₹1 and ₹1,00,000.'
+)
                   return
                 }
                 localStorage.setItem('saral-demo-upi-limit', String(upiLimit))
@@ -2506,11 +2894,15 @@ if (activeTab === 'Services') {
                   localStorage.setItem('saral-service-requests-v1', JSON.stringify(updated))
                   return updated
                 })
-                window.alert('Demo UPI limit saved.')
+                window.alert(
+  language === 'hi'
+    ? 'डेमो UPI सीमा सेव हो गई।'
+    : 'Demo UPI limit saved.'
+)
               }}
               className="mt-2 min-h-11 w-full rounded-lg bg-teal-800 px-3 font-semibold text-white"
             >
-              Save limit
+              {language === 'hi' ? 'सीमा सेव करें' : 'Save limit'}
             </button>
           </div>
         </div>
@@ -2521,16 +2913,53 @@ if (activeTab === 'Services') {
 
         {serviceRequests.length === 0 ? (
           <p className="mt-2 text-sm text-slate-600">
-            No service requests yet.
+            {language === 'hi'
+  ? 'अभी तक कोई सेवा अनुरोध नहीं है।'
+  : 'No service requests yet.'}
           </p>
         ) : (
           <div className="mt-3 space-y-3">
             {serviceRequests.map((request) => (
               <article key={request.id} className="rounded-xl bg-slate-50 p-3">
-                <p className="font-semibold">{request.title}</p>
-                <p className="mt-1 text-sm text-slate-600">{request.details}</p>
+                
+<p className="font-semibold">
+  {language === 'hi'
+    ? ({
+        'UPI limit updated': 'UPI सीमा अपडेट की गई',
+        'Demo card blocked': 'डेमो कार्ड ब्लॉक किया गया',
+        'Demo card unblocked': 'डेमो कार्ड अनब्लॉक किया गया',
+        'Update contact details': 'संपर्क विवरण अपडेट करें',
+        'Cheque book request': 'चेकबुक का अनुरोध',
+      }[request.title] || request.title)
+    : request.title}
+</p>
+
+<p className="mt-1 text-sm text-slate-600">
+  {language === 'hi'
+    ? request.title === 'UPI limit updated'
+      ? `दैनिक डेमो सीमा: ₹${upiLimit}`
+      : request.title === 'Demo card blocked'
+        ? 'कार्ड की स्थिति: ब्लॉक'
+        : request.title === 'Demo card unblocked'
+          ? 'कार्ड की स्थिति: सक्रिय'
+          : request.title === 'Cheque book request'
+            ? 'एक चेकबुक'
+            : request.title === 'Update contact details'
+              ? 'संपर्क विवरण सत्यापित'
+              : request.details
+    : request.details}
+</p>
+
                 <p className="mt-1 text-xs text-slate-500">
-                  {request.date} · {request.status}
+                  {request.date} · {
+  language === 'hi'
+    ? ({
+        Completed: 'पूरा हुआ',
+        Submitted: 'जमा किया गया',
+        Pending: 'लंबित',
+      }[request.status] || request.status)
+    : request.status
+}
                 </p>
               </article>
             ))}
@@ -2714,104 +3143,278 @@ if (activeTab === 'Learn') {
 if (activeTab === 'Help') {
   return (
     <section className="space-y-4">
+      
       <div className="rounded-2xl border border-teal-200 bg-teal-50 p-6">
         <p className="text-sm font-semibold uppercase tracking-wide text-teal-800">
           Saral Banking
         </p>
         <h2 className="mt-2 text-2xl font-bold text-slate-900">
-          The Standard
+          {language === 'hi' ? 'बैंकिंग के हमारे सिद्धांत' : 'The Standard'}
         </h2>
         <p className="mt-2 leading-6 text-slate-700">
-          Banking should feel familiar, clear and safe. The same actions
-          should work the same way on every screen.
+          {language === 'hi'
+            ? 'बैंकिंग आसान, स्पष्ट और सुरक्षित होनी चाहिए। हर स्क्रीन पर काम करने का तरीका एक जैसा होना चाहिए।'
+            : 'Banking should feel familiar, clear and safe. The same actions should work the same way on every screen.'}
         </p>
       </div>
 
       <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
-        <h3 className="text-lg font-bold">1. Same place for the same thing</h3>
+        <h3 className="text-lg font-bold">
+          {language === 'hi' ? '1. हर चीज़ की जगह एक जैसी हो' : '1. Same place for the same thing'}
+        </h3>
         <p className="mt-2 text-slate-600">
-          Home, Pay, History, Services and Help always stay in the bottom
-          navigation.
+          {language === 'hi'
+            ? 'होम, पैसे भेजें, लेन-देन, सेवाएँ और सहायता हमेशा नीचे दिए गए मेनू में रहते हैं।'
+            : 'Home, Pay, History, Services and Help always stay in the bottom navigation.'}
         </p>
         <div className="mt-4 flex flex-wrap gap-2">
-          {['Home', 'Pay', 'History', 'Services', 'Help'].map((tab) => (
+          {(language === 'hi'
+            ? ['होम', 'पैसे भेजें', 'लेन-देन', 'सेवाएँ', 'सहायता']
+            : ['Home', 'Pay', 'History', 'Services', 'Help']
+          ).map((tab) => (
             <span key={tab} className="rounded-full bg-teal-50 px-3 py-2 text-sm font-semibold text-teal-800">
               {tab}
             </span>
           ))}
         </div>
         <p className="mt-3 text-sm text-slate-500">
-          Live example: these are the five tabs you can see below.
+          {language === 'hi'
+            ? 'उदाहरण: नीचे आपको ये पाँच टैब दिखाई देते हैं।'
+            : 'Live example: these are the five tabs you can see below.'}
         </p>
       </div>
 
       <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
-        <h3 className="text-lg font-bold">2. Use simple words</h3>
+        <h3 className="text-lg font-bold">
+          {language === 'hi' ? '2. आसान शब्दों का इस्तेमाल करें' : '2. Use simple words'}
+        </h3>
         <p className="mt-2 text-slate-600">
-          Buttons use words people understand instead of technical banking
-          terms.
+          {language === 'hi'
+            ? 'बटन पर तकनीकी बैंकिंग शब्दों की जगह ऐसे शब्द होते हैं जिन्हें हर कोई आसानी से समझ सके।'
+            : 'Buttons use words people understand instead of technical banking terms.'}
         </p>
         <div className="mt-4 rounded-xl bg-slate-50 p-4">
-          <p className="text-sm text-slate-500">Instead of technical language</p>
-          <p className="mt-1 text-slate-500 line-through">Fund transfer</p>
-          <p className="mt-3 text-sm text-slate-500">Say this</p>
-          <p className="mt-1 text-lg font-bold text-teal-800">Send money</p>
+          <p className="text-sm text-slate-500">
+            {language === 'hi' ? 'तकनीकी शब्द के बजाय' : 'Instead of technical language'}
+          </p>
+          <p className="mt-1 text-slate-500 line-through">
+            {language === 'hi' ? 'धन हस्तांतरण' : 'Fund transfer'}
+          </p>
+          <p className="mt-3 text-sm text-slate-500">
+            {language === 'hi' ? 'यह कहें' : 'Say this'}
+          </p>
+          <p className="mt-1 text-lg font-bold text-teal-800">
+            {language === 'hi' ? 'पैसे भेजें' : 'Send money'}
+          </p>
         </div>
         <p className="mt-3 text-sm text-slate-500">
-          Live example: open Pay to see the Send money flow.
+          {language === 'hi'
+            ? 'उदाहरण: पैसे भेजने की प्रक्रिया देखने के लिए नीचे पैसे भेजें टैब खोलें।'
+            : 'Live example: open Pay to see the Send money flow.'}
         </p>
       </div>
 
+
       <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
-        <h3 className="text-lg font-bold">3. Review before sending</h3>
+        <h3 className="text-lg font-bold">
+  {language === 'hi' ? '3. भेजने से पहले जाँचें' : '3. Review before sending'}
+</h3>
         <p className="mt-2 text-slate-600">
-          A payment should give people time to check the details before
-          confirming with their PIN.
-        </p>
+  {language === 'hi'
+    ? 'PIN डालकर भुगतान की पुष्टि करने से पहले विवरण जाँचने का समय मिलना चाहिए।'
+    : 'A payment should give people time to check the details before confirming with their PIN.'}
+</p>
         <ol className="mt-4 space-y-3">
-          {[
-            ['Step 1', 'Fill it in', 'Choose who to pay and enter the amount.'],
-            ['Step 2', 'Review', 'Check the recipient and amount carefully.'],
-            ['Step 3', 'Confirm', 'Enter the demo PIN to continue.'],
-            ['Receipt', 'See the result', 'Check the payment result.'],
-          ].map(([step, title, description]) => (
-            <li key={step} className="flex gap-3 rounded-xl bg-slate-50 p-3">
-              <span className="flex h-9 w-16 shrink-0 items-center justify-center rounded-lg bg-teal-100 text-sm font-bold text-teal-800">
-                {step}
-              </span>
-              <div>
-                <p className="font-semibold">{title}</p>
-                <p className="mt-1 text-sm text-slate-600">{description}</p>
-              </div>
-            </li>
-          ))}
+          
+{(language === 'hi'
+  ? [
+      ['चरण 1', 'विवरण भरें', 'किसे पैसे भेजने हैं, चुनें और राशि दर्ज करें।'],
+      ['चरण 2', 'जाँचें', 'प्राप्तकर्ता और राशि को ध्यान से जाँचें।'],
+      ['चरण 3', 'पुष्टि करें', 'आगे बढ़ने के लिए डेमो PIN डालें।'],
+      ['रसीद', 'नतीजा देखें', 'भुगतान का परिणाम देखें।'],
+    ]
+  : [
+      ['Step 1', 'Fill it in', 'Choose who to pay and enter the amount.'],
+      ['Step 2', 'Review', 'Check the recipient and amount carefully.'],
+      ['Step 3', 'Confirm', 'Enter the demo PIN to continue.'],
+      ['Receipt', 'See the result', 'Check the payment result.'],
+    ]
+).map(([step, title, description]) => (
+  <li key={step} className="flex gap-3 rounded-xl bg-slate-50 p-3">
+    <span className="flex h-9 w-16 shrink-0 items-center justify-center rounded-lg bg-teal-100 text-sm font-bold text-teal-800">
+      {step}
+    </span>
+    <div>
+      <p className="font-semibold">{title}</p>
+      <p className="mt-1 text-sm text-slate-600">{description}</p>
+    </div>
+  </li>
+))}
+
         </ol>
       </div>
 
       <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
-        <h3 className="text-lg font-bold">4. Keep people in control</h3>
+        <h3 className="text-lg font-bold">
+  {language === 'hi' ? '4. नियंत्रण अपने हाथ में रखें' : '4. Keep people in control'}
+</h3>
         <p className="mt-2 text-slate-600">
-          Clear balances, payment history, language choices and safety checks
-          help people make informed decisions.
-        </p>
+  {language === 'hi'
+    ? 'बैलेंस, भुगतान का इतिहास, भाषा के विकल्प और सुरक्षा जाँच आपको सही निर्णय लेने में मदद करते हैं।'
+    : 'Clear balances, payment history, language choices and safety checks help people make informed decisions.'}
+</p>
         <p className="mt-3 text-sm text-slate-500">
-          Live example: visit Settings to change the language or reset the demo.
-        </p>
+  {language === 'hi'
+    ? 'उदाहरण: भाषा बदलने या डेमो रीसेट करने के लिए सेटिंग्स खोलें।'
+    : 'Live example: visit Settings to change the language or reset the demo.'}
+</p>
         <button
           type="button"
           onClick={() => setActiveTab('Settings')}
           className="mt-4 min-h-12 rounded-xl border border-teal-700 px-4 font-semibold text-teal-800 hover:bg-teal-50"
         >
-          Open Settings
+          {language === 'hi' ? 'सेटिंग्स खोलें' : 'Open Settings'}
         </button>
       </div>
+
+<div className="rounded-2xl border border-rose-200 bg-white p-5 shadow-sm">
+  <h3 className="text-lg font-bold text-rose-800">
+    {language === 'hi' ? 'धोखाधड़ी से सुरक्षित रहें' : 'Stay safe from fraud'}
+  </h3>
+
+  <ul className="mt-3 list-disc space-y-2 pl-5 text-slate-700">
+    <li>
+      {language === 'hi'
+        ? 'अपना PIN, OTP या पासवर्ड किसी के साथ साझा न करें।'
+        : 'Never share your PIN, OTP, or password with anyone.'}
+    </li>
+    <li>
+      {language === 'hi'
+        ? 'पैसे प्राप्त करने के लिए अपना UPI PIN न डालें।'
+        : 'You do not need to enter your UPI PIN to receive money.'}
+    </li>
+    <li>
+      {language === 'hi'
+        ? 'संदिग्ध भुगतान पर तुरंत अपने बैंक से संपर्क करें।'
+        : 'Contact your bank immediately about a suspicious payment.'}
+    </li>
+  </ul>
+
+  <div className="mt-4 rounded-xl bg-rose-50 p-4">
+    <p className="font-bold text-rose-900">
+      {language === 'hi' ? 'साइबर धोखाधड़ी हेल्पलाइन' : 'Cyber fraud helpline'}
+    </p>
+    <p className="mt-1 text-2xl font-bold text-rose-900">1930</p>
+    <p className="mt-2 text-sm text-slate-700">
+      {language === 'hi'
+        ? 'ऑनलाइन शिकायत के लिए'
+        : 'For online complaints, visit'}
+      {' '}
+      <a
+        href="https://cybercrime.gov.in/"
+        target="_blank"
+        rel="noreferrer"
+        className="font-semibold text-teal-800 underline"
+      >
+        cybercrime.gov.in
+      </a>
+    </p>
+  </div>
+
+  <p className="mt-3 text-xs text-slate-500">
+    {language === 'hi'
+      ? 'Saral Banking एक हैकाथॉन डेमो है, वास्तविक बैंक सेवा नहीं।'
+      : 'Saral Banking is a hackathon demo, not a real banking service.'}
+  </p>
+</div>
+
+
+      <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
+        <h3 className="text-xl font-bold">
+          {language === 'hi' ? 'अक्सर पूछे जाने वाले सवाल' : 'Frequently Asked Questions'}
+        </h3>
+        <p className="mt-2 text-sm text-slate-600">
+          {language === 'hi'
+            ? 'बैंकिंग और सुरक्षा से जुड़े आम सवालों के जवाब।'
+            : 'Answers to common banking and safety questions.'}
+        </p>
+
+        <div className="mt-4 space-y-3">
+          {(language === 'hi'
+            ? [
+                ['Saral Banking क्या है?', 'यह बैंकिंग को आसान और सुरक्षित बनाने के लिए बनाया गया हैकाथॉन डेमो है।'],
+                ['क्या यह असली बैंक है?', 'नहीं। यह एक डेमो है और कोई वास्तविक बैंकिंग सेवा नहीं देता।'],
+                ['क्या मैं असली पैसे भेज सकता हूँ?', 'नहीं। सभी भुगतान केवल डेमो के लिए हैं।'],
+                ['डेमो PIN क्या है?', 'साइन-इन के लिए डेमो PIN 1234 है। अपना असली बैंक PIN कभी इस्तेमाल न करें।'],
+                ['क्या मुझे अपना असली PIN डालना चाहिए?', 'नहीं। असली PIN, OTP या पासवर्ड कभी भी इस डेमो में न डालें।'],
+                ['OTP क्या होता है?', 'OTP एक बार इस्तेमाल होने वाला कोड है। इसे किसी के साथ साझा न करें।'],
+                ['UPI PIN क्या है?', 'यह UPI भुगतान की पुष्टि करने वाला गोपनीय PIN है। इसे किसी को न बताएँ।'],
+                ['पैसे भेजने से पहले क्या जाँचूँ?', 'प्राप्तकर्ता का नाम, भुगतान राशि और अनुरोध का उद्देश्य जाँचें।'],
+                ['पैसे प्राप्त करने के लिए PIN चाहिए?', 'नहीं। पैसे प्राप्त करने के लिए UPI PIN डालने की आवश्यकता नहीं होती।'],
+                ['संदिग्ध संदेश मिलने पर क्या करूँ?', 'जवाब देने या लिंक खोलने से पहले आधिकारिक माध्यम से उसकी पुष्टि करें।'],
+                ['अगर कोई खाता बंद करने की धमकी दे?', 'घबराएँ नहीं। बैंक के आधिकारिक ऐप या सत्यापित नंबर से जाँचें।'],
+                ['क्या बैंक कर्मचारी OTP माँग सकते हैं?', 'अपना OTP, PIN या पासवर्ड किसी के साथ साझा न करें।'],
+                ['नकली कस्टमर केयर नंबर कैसे पहचानूँ?', 'नंबर बैंक की आधिकारिक वेबसाइट, ऐप या कार्ड से सत्यापित करें।'],
+                ['अनजान QR कोड स्कैन करना सुरक्षित है?', 'सावधान रहें। QR कोड स्कैन करने और PIN डालने से भुगतान हो सकता है।'],
+                ['क्या किसी को मेरा फोन नियंत्रित करने देना चाहिए?', 'नहीं। अनजान व्यक्ति के कहने पर रिमोट-एक्सेस ऐप इंस्टॉल न करें।'],
+                ['अगर गलत व्यक्ति को पैसे भेज दूँ?', 'तुरंत अपने बैंक के आधिकारिक सहायता माध्यम से संपर्क करें।'],
+                ['साइबर धोखाधड़ी की शिकायत कहाँ करें?', '1930 पर कॉल करें या cybercrime.gov.in पर शिकायत दर्ज करें।'],
+                ['1930 नंबर किसलिए है?', 'भारत में साइबर वित्तीय धोखाधड़ी की रिपोर्ट करने के लिए इस हेल्पलाइन का उपयोग किया जा सकता है।'],
+                ['क्या मुझे धोखाधड़ी की शिकायत जल्दी करनी चाहिए?', 'हाँ। जल्द रिपोर्ट करने से संबंधित अधिकारियों और बैंक को कार्रवाई शुरू करने में मदद मिल सकती है।'],
+                ['क्या मैं अपना बैलेंस छिपा सकता हूँ?', 'डेमो की सेटिंग्स में बैलेंस दिखाने का विकल्प बदलें।'],
+                ['भाषा कैसे बदलूँ?', 'सेटिंग्स में जाकर उपलब्ध भाषा चुनें।'],
+                ['लेन-देन का इतिहास कहाँ मिलेगा?', 'History टैब में डेमो लेन-देन और उनके विवरण देखें।'],
+                ['क्या मैं अपना कार्ड ब्लॉक कर सकता हूँ?', 'Services में उपलब्ध डेमो कार्ड ब्लॉक विकल्प का उपयोग करें।'],
+                ['नॉमिनी क्या होता है?', 'नॉमिनी वह व्यक्ति होता है जिसे खाते से संबंधित कुछ लाभों के लिए नामित किया जाता है। वास्तविक नियम बैंक से सत्यापित करें।'],
+                ['क्या मेरा डेटा असली बैंक में जाता है?', 'यह एक डेमो है। इसमें दिखाई गई सुविधाएँ वास्तविक बैंकिंग लेन-देन नहीं करतीं।'],
+              ]
+            : [
+                ['What is Saral Banking?', 'It is a hackathon demo designed to make banking easier and safer.'],
+                ['Is this a real bank?', 'No. This is a demo, not a real banking service.'],
+                ['Can I send real money?', 'No. Payments in this app are simulated for demonstration only.'],
+                ['What is the demo PIN?', 'The demo sign-in PIN is 1234. Never use your real banking PIN.'],
+                ['Should I enter my real PIN?', 'No. Never enter your real PIN, OTP, or password in this demo.'],
+                ['What is an OTP?', 'An OTP is a one-time code. Never share it with anyone.'],
+                ['What is a UPI PIN?', 'It is a confidential PIN used to authorize UPI payments. Never disclose it.'],
+                ['What should I check before sending money?', 'Check the recipient, amount, and purpose of the payment request.'],
+                ['Do I need a PIN to receive money?', 'No. You do not need to enter your UPI PIN to receive money.'],
+                ['What should I do with a suspicious message?', 'Verify it through an official channel before replying or opening links.'],
+                ['What if someone threatens to block my account?', 'Stay calm and check through your bank’s official app or verified number.'],
+                ['Can bank staff ask for my OTP?', 'Never share your OTP, PIN, or password with anyone.'],
+                ['How can I spot a fake customer-care number?', 'Verify the number using your bank’s official website, app, or card.'],
+                ['Is it safe to scan an unknown QR code?', 'Be cautious. Scanning a QR code and entering your PIN may authorize a payment.'],
+                ['Should I let a stranger control my phone?', 'No. Never install remote-access apps at the request of an unknown caller.'],
+                ['What if I send money to the wrong person?', 'Contact your bank immediately through its official support channel.'],
+                ['Where can I report cyber fraud?', 'Call 1930 or file a complaint at cybercrime.gov.in.'],
+                ['What is the 1930 helpline?', 'It is India’s helpline for reporting cyber financial fraud.'],
+                ['Should I report fraud quickly?', 'Yes. Prompt reporting can help the relevant authorities and bank begin their response.'],
+                ['Can I hide my balance?', 'Change the balance-visibility option in the demo Settings.'],
+                ['How do I change the language?', 'Open Settings and select an available language.'],
+                ['Where can I see transaction history?', 'Use the History tab to review demo transactions and their details.'],
+                ['Can I block my card?', 'Use the demo card-blocking option available under Services.'],
+                ['What is a nominee?', 'A nominee is a person designated for certain account-related benefits. Verify the applicable rules with your bank.'],
+                ['Does my data go to a real bank?', 'This is a demo; its displayed features do not perform real banking transactions.'],
+              ]
+          ).map(([question, answer], index) => (
+            <details key={index} className="rounded-xl border border-slate-200 p-3">
+              <summary className="cursor-pointer py-1 font-semibold">
+                {question}
+              </summary>
+              <p className="mt-3 text-sm leading-6 text-slate-600">
+                {answer}
+              </p>
+            </details>
+          ))}
+        </div>
+      </div>
+
 
       <button
         type="button"
         onClick={() => setActiveTab('Home')}
         className="min-h-12 w-full rounded-xl bg-teal-700 px-5 font-semibold text-white hover:bg-teal-800"
       >
-        Back to Home
+        {language === 'hi' ? 'होम पर वापस जाएँ' : 'Back to Home'}
       </button>
     </section>
   )
@@ -2867,7 +3470,17 @@ const page = content[activeTab]
   }
 
   return (
-    <div className={`min-h-screen bg-slate-50 text-slate-900 ${simpleMode ? 'text-lg' : ''}`}>
+    
+<div
+  className={`min-h-screen ${
+    highContrast
+      ? 'bg-black text-white'
+      : 'bg-slate-50 text-slate-900'
+  } ${simpleMode || textSize === 'large' ? 'text-lg' : ''} ${
+    textSize === 'extra-large' ? 'text-xl' : ''
+  }`}
+>
+
       <header className="border-b border-slate-200 bg-white">
         <div className="mx-auto flex max-w-3xl items-center justify-between gap-3 px-4 py-4 sm:px-6">
           <div className="flex min-w-0 items-center gap-3">
