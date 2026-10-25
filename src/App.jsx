@@ -112,8 +112,24 @@ const [transactions, setTransactions] = useState(() =>
   loadDemoData('saral-transactions-v2', initialTransactions)
 )
 
+const [reportedTransactions, setReportedTransactions] = useState(() =>
+  loadDemoData('saral-reported-transactions-v1', [])
+)
+
 const [payees, setPayees] = useState(() =>
   loadDemoData('saral-payees-v1', initialPayees)
+)
+
+const [serviceRequests, setServiceRequests] = useState(() =>
+  loadDemoData('saral-service-requests-v1', [])
+)
+
+const [cardBlocked, setCardBlocked] = useState(() =>
+  localStorage.getItem('saral-demo-card-blocked') === 'true'
+)
+
+const [upiLimit, setUpiLimit] = useState(() =>
+  Number(localStorage.getItem('saral-demo-upi-limit')) || 25000
 )
 
 
@@ -322,6 +338,16 @@ useEffect(() => {
   function completePayment(event) {
     event.preventDefault()
     setPaymentError('')
+
+    if (cardBlocked) {
+      setPaymentError(
+        language === 'hi'
+          ? 'आपका कार्ड ब्लॉक है। भुगतान करने से पहले इसे अनब्लॉक करें।'
+          : 'Your demo card is blocked. Unblock it before making a payment.'
+      )
+      return
+    }
+
     const recipientIsNew = isNewPayee || Boolean(selectedPayee?.isNew)
     if (urgentRequest !== 'no') {
       setPaymentError(
@@ -581,6 +607,61 @@ function resetDemoData() {
 <p className="mt-2 text-sm text-teal-100">
   {language === 'hi' ? 'डेमो खाता' : 'Demo account'} · •••• 4821
 </p>
+
+<p className="mt-2 text-sm text-teal-100">
+  IFSC: SARL0001234
+</p>
+<p className="mt-1 text-sm text-teal-100">
+  {language === 'hi' ? 'शाखा: अगरतला (डेमो)' : 'Branch: Agartala (Demo)'}
+</p>
+
+<div className="mt-3 flex flex-wrap gap-2">
+  <button
+    type="button"
+    onClick={async () => {
+      const details = 'Saral Bank Demo Account\nAccount number: XXXX XXXX 4821'
+      try {
+        await navigator.clipboard.writeText(details)
+        window.alert('Demo account details copied.')
+      } catch {
+        window.alert('Copy is unavailable in this browser.')
+      }
+    }}
+    className="min-h-11 rounded-xl border border-teal-300 px-3 py-2 text-sm font-semibold text-white hover:bg-teal-700"
+  >
+    {language === 'hi' ? 'विवरण कॉपी करें' : 'Copy details'}
+  </button>
+
+  <button
+    type="button"
+    onClick={async () => {
+      const details = 'Saral Bank Demo Account\nAccount number: XXXX XXXX 4821'
+      if (navigator.share) {
+        try {
+          await navigator.share({
+            title: 'Saral Bank Demo Account',
+            text: details,
+          })
+        } catch (error) {
+          if (error.name !== 'AbortError') {
+            window.alert('Sharing failed. Please try again.')
+          }
+        }
+      } else {
+        try {
+          await navigator.clipboard.writeText(details)
+          window.alert('Sharing is unavailable here. Details copied instead.')
+        } catch {
+          window.alert('Sharing and copying are unavailable in this browser.')
+        }
+      }
+    }}
+    className="min-h-11 rounded-xl border border-teal-300 px-3 py-2 text-sm font-semibold text-white hover:bg-teal-700"
+  >
+    {language === 'hi' ? 'विवरण साझा करें' : 'Share details'}
+  </button>
+</div>
+
 
             </div>
             <button
@@ -1344,6 +1425,60 @@ function downloadCsvStatement() {
   window.setTimeout(() => URL.revokeObjectURL(url), 1000)
 }  
 
+function printStatement() {
+  const rows = myTransactions.map((transaction) => `
+    <tr>
+      <td>${transaction.date}</td>
+      <td>${translateTransactionTitle(transaction.title, 'en')}</td>
+      <td>${transaction.type === 'credit' ? 'Money received' : 'Money sent or spent'}</td>
+      <td>${formatMoney(transaction.amountPaise)}</td>
+      <td>${transaction.status || 'Completed'}</td>
+    </tr>
+  `).join('')
+
+  const printWindow = window.open('', '_blank')
+
+  if (!printWindow) {
+    window.alert('Please allow pop-ups to print your statement.')
+    return
+  }
+
+  printWindow.document.write(`
+    <!DOCTYPE html>
+    <html>
+      <head>
+        <title>Saral Banking Statement</title>
+        <style>
+          body { font-family: Arial, sans-serif; padding: 24px; color: #1e293b; }
+          h1 { color: #115e59; }
+          p { color: #475569; }
+          table { width: 100%; border-collapse: collapse; margin-top: 20px; }
+          th, td { border: 1px solid #cbd5e1; padding: 8px; text-align: left; }
+          th { background: #f1f5f9; }
+          @media print { body { padding: 0; } }
+        </style>
+      </head>
+      <body>
+        <h1>Saral Banking</h1>
+        <p>Demo statement for ${selectedCustomer.name}</p>
+        <p>Account: XXXX XXXX 4821</p>
+        <table>
+          <thead>
+            <tr>
+              <th>Date</th><th>Description</th><th>Type</th><th>Amount</th><th>Status</th>
+            </tr>
+          </thead>
+          <tbody>${rows}</tbody>
+        </table>
+        <p>Demo statement only — not an official bank statement.</p>
+        <script>window.onload = () => window.print()</script>
+      </body>
+    </html>
+  `)
+
+  printWindow.document.close()
+}
+
 
 function renderHistory() {
   const filteredTransactions = myTransactions.filter((transaction) => {
@@ -1476,9 +1611,75 @@ function renderHistory() {
         {t.downloadCsvStatement}
       </button>
 
+<button
+  type="button"
+  onClick={printStatement}
+  className="flex min-h-14 w-full items-center justify-center gap-2 rounded-xl border border-teal-800 px-4 py-3 font-semibold text-teal-800 hover:bg-teal-50 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-teal-800"
+>
+  <span aria-hidden="true">🖨</span>
+  {language === 'hi' ? 'प्रिंट / PDF में सेव करें' : 'Print / Save as PDF'}
+</button>
+
       <p className="text-sm text-slate-600">
         {t.csvStatementDescription}
       </p>
+
+{(() => {
+  const monthStart = new Date()
+  monthStart.setDate(1)
+  monthStart.setHours(0, 0, 0, 0)
+
+  const monthlyTransactions = transactions.filter((transaction) => {
+    const transactionDate = new Date(transaction.date)
+    return (
+      transaction.customerId === selectedCustomer.id &&
+      !Number.isNaN(transactionDate.getTime()) &&
+      transactionDate >= monthStart
+    )
+  })
+
+  const receivedPaise = monthlyTransactions
+    .filter((transaction) => transaction.type === 'credit')
+    .reduce((total, transaction) => total + transaction.amountPaise, 0)
+
+  const sentPaise = monthlyTransactions
+    .filter((transaction) => transaction.type === 'debit')
+    .reduce((total, transaction) => total + transaction.amountPaise, 0)
+
+  return (
+    <section className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
+      <h3 className="text-lg font-bold">
+        {language === 'hi' ? 'इस महीने का सारांश' : 'This month’s summary'}
+      </h3>
+
+      <div className="mt-4 grid grid-cols-2 gap-3">
+        <div className="rounded-xl bg-green-50 p-3">
+          <p className="text-sm text-green-800">
+            {language === 'hi' ? 'पैसे मिले' : 'Money received'}
+          </p>
+          <p className="mt-1 break-words font-bold text-green-900">
+            {formatMoney(receivedPaise)}
+          </p>
+        </div>
+
+        <div className="rounded-xl bg-slate-100 p-3">
+          <p className="text-sm text-slate-700">
+            {language === 'hi' ? 'पैसे भेजे' : 'Money sent'}
+          </p>
+          <p className="mt-1 break-words font-bold text-slate-900">
+            {formatMoney(sentPaise)}
+          </p>
+        </div>
+      </div>
+
+      <p className="mt-3 text-sm text-slate-600">
+        {language === 'hi' ? 'शुद्ध बदलाव' : 'Net change'}:{' '}
+        <strong>{formatMoney(receivedPaise - sentPaise)}</strong>
+      </p>
+    </section>
+  )
+})()}
+
 
       <section>
         <h3 className="mb-3 text-lg font-bold">{t.yourTransactions}</h3>
@@ -1526,6 +1727,54 @@ function renderHistory() {
     ? t.completed
     : transaction.status || t.completed}
                   </p>
+
+<button
+  type="button"
+  onClick={() => {
+    const reason = window.prompt(
+      language === 'hi'
+        ? 'समस्या बताएं (जैसे: यह भुगतान मेरा नहीं है)'
+        : 'Describe the problem (e.g. I do not recognize this payment)'
+    )
+
+    if (reason && reason.trim()) {
+      
+setReportedTransactions((previous) => {
+  if (previous.some((report) => report.transactionId === transaction.id)) {
+    return previous
+  }
+
+  const updated = [
+    ...previous,
+    {
+      transactionId: transaction.id,
+      title: transaction.title,
+      reason: reason.trim(),
+      date: new Date().toLocaleString(),
+    },
+  ]
+
+  localStorage.setItem(
+    'saral-reported-transactions-v1',
+    JSON.stringify(updated)
+  )
+
+  return updated
+})
+
+window.alert(
+  language === 'hi'
+    ? 'डेमो रिपोर्ट दर्ज की गई।'
+    : 'Demo report recorded successfully.'
+)
+
+    }
+  }}
+  className="mt-3 min-h-10 rounded-lg border border-rose-200 px-3 py-2 text-sm font-semibold text-rose-700 hover:bg-rose-50"
+>
+  {language === 'hi' ? 'समस्या की रिपोर्ट करें' : 'Report a problem'}
+</button>
+
                 </div>
 
                 <div className="max-w-[45%] shrink-0 text-right">
@@ -1564,6 +1813,39 @@ function renderHistory() {
           )}
         </div>
       </section>
+
+<section className="mt-6">
+  <h3 className="mb-3 text-lg font-bold">
+    {language === 'hi' ? 'रिपोर्ट किए गए लेन-देन' : 'Reported transactions'}
+  </h3>
+
+  <div className="rounded-2xl border border-slate-200 bg-white shadow-sm">
+    {reportedTransactions.length === 0 ? (
+      <p className="p-4 text-sm text-slate-600">
+        {language === 'hi'
+          ? 'आपने अभी तक किसी लेन-देन की रिपोर्ट नहीं की है।'
+          : 'You have not reported any transactions yet.'}
+      </p>
+    ) : (
+      reportedTransactions.map((report) => (
+        <article
+          key={report.transactionId}
+          className="border-b border-slate-100 p-4 last:border-b-0"
+        >
+          <p className="font-semibold text-slate-900">{report.title}</p>
+          <p className="mt-1 text-sm text-slate-600">
+            {language === 'hi' ? 'कारण:' : 'Reason:'} {report.reason}
+          </p>
+          <p className="mt-1 text-xs text-slate-500">{report.date}</p>
+          <p className="mt-2 text-sm font-medium text-amber-700">
+            {language === 'hi' ? 'डेमो रिपोर्ट दर्ज' : 'Demo report recorded'}
+          </p>
+        </article>
+      ))
+    )}
+  </div>
+</section>
+
 
       <button
         type="button"
@@ -2099,10 +2381,166 @@ if (activeTab === 'Services') {
   </span>
 </button>
 
+      
       </div>
+
+      <section className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
+        <h3 className="text-xl font-bold">
+          {language === 'hi' ? 'सेवा अनुरोध' : 'Service requests'}
+        </h3>
+        <p className="mt-1 text-sm text-slate-600">
+          {language === 'hi'
+            ? 'यह डेमो अनुरोध है, वास्तविक बैंक अनुरोध नहीं।'
+            : 'These are demo requests, not real bank submissions.'}
+        </p>
+
+        <div className="mt-4 grid gap-3 sm:grid-cols-2">
+          <button
+            type="button"
+            onClick={() => {
+              const contact = window.prompt('Enter a demo mobile number or email:')
+              if (!contact?.trim()) return
+
+              const otp = window.prompt('Demo OTP: enter 123456 to verify')
+              if (otp !== '123456') {
+                window.alert('Demo OTP verification failed.')
+                return
+              }
+
+              const request = {
+                id: `REQ-${Date.now()}`,
+                title: 'Update contact details',
+                details: contact.trim(),
+                status: 'Completed',
+                date: new Date().toLocaleString(),
+              }
+              setServiceRequests((previous) => {
+                const updated = [request, ...previous]
+                localStorage.setItem('saral-service-requests-v1', JSON.stringify(updated))
+                return updated
+              })
+              window.alert('Demo contact update verified.')
+            }}
+            className="min-h-12 rounded-xl border border-slate-300 p-3 text-left font-semibold"
+          >
+            Update contact (demo OTP)
+          </button>
+
+          <button
+            type="button"
+            onClick={() => {
+              const request = {
+                id: `REQ-${Date.now()}`,
+                title: 'Cheque book request',
+                details: 'One cheque book',
+                status: 'Submitted',
+                date: new Date().toLocaleString(),
+              }
+              setServiceRequests((previous) => {
+                const updated = [request, ...previous]
+                localStorage.setItem('saral-service-requests-v1', JSON.stringify(updated))
+                return updated
+              })
+              window.alert('Demo cheque book request submitted.')
+            }}
+            className="min-h-12 rounded-xl border border-slate-300 p-3 text-left font-semibold"
+          >
+            Request cheque book
+          </button>
+
+          <button
+            type="button"
+            onClick={() => {
+              const nextBlocked = !cardBlocked
+              setCardBlocked(nextBlocked)
+              localStorage.setItem('saral-demo-card-blocked', String(nextBlocked))
+
+              const request = {
+                id: `REQ-${Date.now()}`,
+                title: nextBlocked ? 'Demo card blocked' : 'Demo card unblocked',
+                details: nextBlocked ? 'Card status changed to blocked' : 'Card status changed to active',
+                status: 'Completed',
+                date: new Date().toLocaleString(),
+              }
+              setServiceRequests((previous) => {
+                const updated = [request, ...previous]
+                localStorage.setItem('saral-service-requests-v1', JSON.stringify(updated))
+                return updated
+              })
+            }}
+            className="min-h-12 rounded-xl border border-slate-300 p-3 text-left font-semibold"
+          >
+            {cardBlocked ? 'Unblock demo card' : 'Block demo card'}
+          </button>
+
+          <div className="rounded-xl border border-slate-200 p-3">
+            <label htmlFor="demo-upi-limit" className="block font-semibold">
+              Daily UPI limit (₹)
+            </label>
+            <input
+              id="demo-upi-limit"
+              type="number"
+              min="1"
+              max="100000"
+              value={upiLimit}
+              onChange={(event) => setUpiLimit(Number(event.target.value))}
+              className="mt-2 min-h-11 w-full rounded-lg border border-slate-300 px-3"
+            />
+            <button
+              type="button"
+              onClick={() => {
+                if (!Number.isFinite(upiLimit) || upiLimit < 1 || upiLimit > 100000) {
+                  window.alert('Enter a limit between ₹1 and ₹1,00,000.')
+                  return
+                }
+                localStorage.setItem('saral-demo-upi-limit', String(upiLimit))
+                const request = {
+                  id: `REQ-${Date.now()}`,
+                  title: 'UPI limit updated',
+                  details: `Daily demo limit: ₹${upiLimit}`,
+                  status: 'Completed',
+                  date: new Date().toLocaleString(),
+                }
+                setServiceRequests((previous) => {
+                  const updated = [request, ...previous]
+                  localStorage.setItem('saral-service-requests-v1', JSON.stringify(updated))
+                  return updated
+                })
+                window.alert('Demo UPI limit saved.')
+              }}
+              className="mt-2 min-h-11 w-full rounded-lg bg-teal-800 px-3 font-semibold text-white"
+            >
+              Save limit
+            </button>
+          </div>
+        </div>
+
+        <h4 className="mt-6 font-bold">
+          {language === 'hi' ? 'अनुरोध की स्थिति' : 'Request tracking'}
+        </h4>
+
+        {serviceRequests.length === 0 ? (
+          <p className="mt-2 text-sm text-slate-600">
+            No service requests yet.
+          </p>
+        ) : (
+          <div className="mt-3 space-y-3">
+            {serviceRequests.map((request) => (
+              <article key={request.id} className="rounded-xl bg-slate-50 p-3">
+                <p className="font-semibold">{request.title}</p>
+                <p className="mt-1 text-sm text-slate-600">{request.details}</p>
+                <p className="mt-1 text-xs text-slate-500">
+                  {request.date} · {request.status}
+                </p>
+              </article>
+            ))}
+          </div>
+        )}
+      </section>
     </section>
   )
 }
+
 
 if (activeTab === 'Learn') {
   return (
