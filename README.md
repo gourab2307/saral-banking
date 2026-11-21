@@ -132,4 +132,7 @@ If you suspect cyber financial fraud in India, contact your bank through an offi
 
 **Gourab Taran**
 
-Built as a hackathon project exploring accessible, understandable, and safer digital banking experiences.
+Built as a hackathon project exploring accessible, understandable, and safer digital banking experiences.   
+## Contributors
+- @gourab2307
+- @sristii22
