@@ -134,5 +134,5 @@ If you suspect cyber financial fraud in India, contact your bank through an offi
 
 Built as a hackathon project exploring accessible, understandable, and safer digital banking experiences.   
 ## Contributors
-- @gourab2307
-- @sristii22
+- [@gourab2307](https://github.com/gourab2307)
+- [@sristii22](https://github.com/sristii22)
